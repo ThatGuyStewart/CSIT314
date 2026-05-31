@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login – TalentMatch</title>
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="nav-brand">✦ TalentMatch</a>
+        <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
+        <div class="nav-links">
+            <a href="/login" class="nav-link active">Login</a>
+            <a href="/register" class="nav-link">Register</a>
+        </div>
+    </nav>
+
+    <div style="min-height:calc(100vh - 64px); display:flex; align-items:center; justify-content:center; padding:40px 24px; background:var(--bg-main);">
+        <div style="width:100%; max-width:460px;">
+            <div style="text-align:center; margin-bottom:32px;">
+                <div style="font-size:2.5rem; margin-bottom:12px;">✦</div>
+                <h1 style="font-size:2rem; margin-bottom:8px;">Welcome back</h1>
+                <p style="color:var(--text-muted);">Sign in to your TalentMatch account.</p>
+            </div>
+
+            <div class="card">
+                <div id="flash-message" class="alert alert-success" hidden></div>
+                <div id="error-messages" class="alert alert-error" hidden></div>
+
+                <form id="login-form">
+                    <div class="form-group">
+                        <label class="form-label" for="email">Email Address</label>
+                        <input type="email" id="email" name="email" class="form-input" placeholder="you@example.com" required autocomplete="email">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="password">Password</label>
+                        <input type="password" id="password" name="password" class="form-input" placeholder="Your password" required autocomplete="current-password">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-full" style="margin-top:8px;">
+                        Sign In ✦
+                    </button>
+                </form>
+
+                <div class="divider">or</div>
+
+                <p style="text-align:center; color:var(--text-muted); font-size:0.9rem;">
+                    Don't have an account?
+                    <a href="/register" style="font-weight:600; color:var(--navy-primary);">Create one free</a>
+                </p>
+            </div>
+
+            <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-top:20px;">
+                <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:8px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Demo Credentials</p>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; font-size:0.82rem;">
+                    <div>
+                        <div style="font-weight:600; color:var(--navy-primary);">Admin</div>
+                        <div style="color:var(--text-muted);">admin@platform.com</div>
+                    </div>
+                    <div>
+                        <div style="font-weight:600; color:var(--navy-primary);">Candidate</div>
+                        <div style="color:var(--text-muted);">alice@example.com</div>
+                    </div>
+                    <div>
+                        <div style="font-weight:600; color:var(--navy-primary);">Employer</div>
+                        <div style="color:var(--text-muted);">techcorp@example.com</div>
+                    </div>
+                </div>
+                <div style="margin-top:8px; font-size:0.82rem; color:var(--text-muted);">Password: <code>Password123</code></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>

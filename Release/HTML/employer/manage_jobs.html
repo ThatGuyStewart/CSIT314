@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Jobs – TalentMatch</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">✦ TalentMatch</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="nav-links">
+      <a href="/employer/dashboard" class="nav-link">Dashboard</a>
+      <a href="/employer/company-profile" class="nav-link">Company Profile</a>
+      <a href="/employer/manage-jobs" class="nav-link active">Manage Jobs</a>
+      <a href="/employer/candidates" class="nav-link">Browse Candidates</a>
+      <a href="/employer/membership" class="nav-link">Membership</a>
+      <a href="/logout" class="nav-link nav-danger">Logout</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="page-header">
+      <h1>💼 Manage Job Postings</h1>
+      <a href="/employer/create-job" class="btn btn-primary">+ Post New Job</a>
+    </div>
+
+    <div id="success-message" class="alert alert-success" hidden></div>
+    <div id="error-message" class="alert alert-error" hidden></div>
+
+    <div class="results-info">
+      <strong id="job-count">0</strong> job postings total
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:16px;" id="jobs-list"></div>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

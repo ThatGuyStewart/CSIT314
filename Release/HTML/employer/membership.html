@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Membership – TalentMatch</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">✦ TalentMatch</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="nav-links">
+        <a href="/employer/dashboard" class="nav-link">Dashboard</a>
+        <a href="/employer/company-profile" class="nav-link">Company Profile</a>
+        <a href="/employer/manage-jobs" class="nav-link">Manage Jobs</a>
+        <a href="/employer/candidates" class="nav-link">Browse Candidates</a>
+        <a href="/employer/membership" class="nav-link active">Membership</a>
+        <a href="/logout" class="nav-link nav-danger">Logout</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="page-header">
+      <h1>⭐ Employer Membership</h1>
+      <span class="badge">Free</span>
+    </div>
+
+    <div class="card mb-32" style="border-left: 4px solid var(--navy-primary);">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+        <div>
+          <div class="card-title" style="margin-bottom:4px;">Current Plan: Free</div>
+          <p style="color:var(--text-muted); margin:0;">You can view up to 10 candidate recommendations per job. Upgrade for unlimited.</p>
+        </div>
+        <form method="POST" action="membership">
+          <input type="hidden" name="action" value="upgrade">
+          <button type="submit" class="btn btn-warning btn-lg">⭐ Upgrade to Premium</button>
+        </form>
+      </div>
+    </div>
+
+    <h2 style="margin-bottom:24px;">Employer Plans</h2>
+    <div class="grid-2" style="gap:24px; margin-bottom:40px; max-width:900px;">
+      <div class="membership-card free-card">
+        <div style="font-size:1.8rem; margin-bottom:8px;">🆓</div>
+        <h3>Free Plan</h3>
+        <div class="membership-price" style="font-size:2rem;">$0 <span style="font-size:1rem;font-weight:400;color:var(--text-muted);">/ month</span></div>
+        <ul class="membership-features">
+          <li>Post up to 5 jobs</li>
+          <li>Top 10 candidate recommendations per job</li>
+          <li>Basic candidate search</li>
+          <li>Company profile</li>
+          <li>Match score breakdown</li>
+        </ul>
+        <div class="badge badge-open" style="width:100%; justify-content:center; padding:10px;">Current Plan</div>
+      </div>
+
+      <div class="membership-card premium-card">
+        <div style="font-size:1.8rem; margin-bottom:8px;">⭐</div>
+        <h3>Premium Plan</h3>
+        <div class="membership-price">$49 <span style="font-size:1rem;font-weight:400;opacity:0.8;">/ month</span></div>
+        <ul class="membership-features">
+          <li>Unlimited job postings</li>
+          <li>Unlimited candidate recommendations</li>
+          <li>Priority job listing placement</li>
+          <li>Advanced candidate filters</li>
+          <li>Full match insights &amp; skills</li>
+          <li>Dedicated employer support</li>
+        </ul>
+        <form method="POST" action="membership">
+          <input type="hidden" name="action" value="upgrade">
+          <button type="submit" class="btn btn-full" style="background:#fff; color:var(--navy-primary); font-weight:700;">⭐ Upgrade Now</button>
+        </form>
+      </div>
+    </div>
+
+    <h2 style="margin-bottom:24px;">Feature Comparison</h2>
+    <div class="table-wrap" style="max-width:800px;">
+      <table class="comparison-table">
+        <thead>
+          <tr><th>Feature</th><th>Free</th><th>Premium</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Job Postings</td><td>Up to 5</td><td><strong>Unlimited</strong></td></tr>
+          <tr><td>Candidate Recommendations / Job</td><td>Top 10</td><td><strong>Unlimited</strong></td></tr>
+          <tr><td>Candidate Search</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+          <tr><td>Match Score Breakdown</td><td><span class="check">✓</span></td><td><span class="check">✓</span></td></tr>
+          <tr><td>Advanced Filters</td><td><span class="cross">✕</span></td><td><span class="check">✓</span></td></tr>
+          <tr><td>Priority Listing</td><td><span class="cross">✕</span></td><td><span class="check">✓</span></td></tr>
+          <tr><td>Full Skills Match</td><td><span class="cross">✕</span></td><td><span class="check">✓</span></td></tr>
+          <tr><td>Employer Support</td><td><span class="cross">✕</span></td><td><span class="check">✓</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="color:var(--text-muted); font-size:0.82rem; margin-top:16px;">* Demo platform – no real payment processing.</p>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Job – TalentMatch</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">✦ TalentMatch</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="nav-links">
+      <a href="/employer/dashboard" class="nav-link">Dashboard</a>
+      <a href="/employer/company-profile" class="nav-link">Company Profile</a>
+      <a href="/employer/manage-jobs" class="nav-link active">Manage Jobs</a>
+      <a href="/employer/candidates" class="nav-link">Browse Candidates</a>
+      <a href="/employer/membership" class="nav-link">Membership</a>
+      <a href="/logout" class="nav-link nav-danger">Logout</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="page-header">
+      <div>
+        <a href="/employer/manage-jobs" style="color:var(--text-muted); font-size:0.9rem;">← Back to Jobs</a>
+        <h1 style="margin-top:8px;">✏ Edit Job Posting</h1>
+      </div>
+      <span class="badge">Open</span>
+    </div>
+
+    <div id="error-message" class="alert alert-error" hidden></div>
+
+    <form method="POST" action="/employer/edit-job">
+      <div class="grid-2" style="gap:28px; align-items:start;">
+        <div>
+          <div class="card mb-24">
+            <div class="card-title">📋 Job Details</div>
+
+            <div class="form-group">
+              <label class="form-label">Job Title *</label>
+              <input type="text" name="job_title" class="form-input" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Job Description *</label>
+              <textarea name="job_description" class="form-textarea" rows="8" required></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Required Skills <span style="font-weight:400;color:var(--text-muted);">(comma-separated)</span></label>
+              <input type="text" name="required_skills" id="required-skills-input" class="form-input">
+              <div id="required-skills-preview" class="skills-preview"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">📊 Requirements</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Education Required</label>
+                <select name="required_education" class="form-select">
+                  <option>Any</option>
+                  <option>High School</option>
+                  <option>Bachelor's</option>
+                  <option>Master's</option>
+                  <option>PhD</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Min. Years Experience</label>
+                <input type="number" name="required_experience" class="form-input" min="0" max="30" value="0">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Career Level</label>
+                <select name="career_level" class="form-select">
+                  <option>Entry-level</option>
+                  <option>Mid-level</option>
+                  <option>Senior</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Job Type</label>
+                <select name="job_type" class="form-select">
+                  <option>Full-time</option>
+                  <option>Part-time</option>
+                  <option>Internship</option>
+                  <option>Contract</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card mb-24">
+            <div class="card-title">📍 Location & Work Mode</div>
+            <div class="form-group">
+              <label class="form-label">Work Mode</label>
+              <select name="work_mode" class="form-select">
+                <option>On-site</option>
+                <option>Remote</option>
+                <option>Hybrid</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Job Location</label>
+              <input type="text" name="job_location" class="form-input">
+            </div>
+          </div>
+
+          <div class="card mb-24">
+            <div class="card-title">💰 Salary Range (Annual USD)</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Minimum</label>
+                <input type="number" name="salary_min" class="form-input" min="0" step="1000">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Maximum</label>
+                <input type="number" name="salary_max" class="form-input" min="0" step="1000">
+              </div>
+            </div>
+          </div>
+
+          <div class="card mb-24">
+            <div class="card-title">⚙ Settings</div>
+            <div class="form-group">
+              <label class="form-label">Application Deadline</label>
+              <input type="date" name="application_deadline" class="form-input">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Status</label>
+              <select name="status" class="form-select">
+                <option value="Open">Open</option>
+                <option value="Closed">Closed</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card">
+            <button type="submit" class="btn btn-primary btn-full btn-lg">💾 Save Changes</button>
+            <a href="/employer/manage-jobs" class="btn btn-secondary btn-full" style="margin-top:10px;">Cancel</a>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+  <script>
+    const rsInput = document.getElementById('required-skills-input');
+    const rsPreview = document.getElementById('required-skills-preview');
+
+    function renderPills(v) {
+      rsPreview.innerHTML = '';
+      v.split(',').map(s => s.trim()).filter(Boolean).forEach(s => {
+        const sp = document.createElement('span');
+        sp.className = 'skill-tag';
+        sp.textContent = s;
+        rsPreview.appendChild(sp);
+      });
+    }
+
+    if (rsInput) {
+      rsInput.addEventListener('input', () => renderPills(rsInput.value));
+      renderPills(rsInput.value);
+    }
+  </script>
+</body>
+</html>

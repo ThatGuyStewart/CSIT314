@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Company Profile – TalentMatch</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">✦ TalentMatch</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="nav-links">
+      <a href="/employer/dashboard" class="nav-link">Dashboard</a>
+      <a href="/employer/company-profile" class="nav-link active">Company Profile</a>
+      <a href="/employer/manage-jobs" class="nav-link">Manage Jobs</a>
+      <a href="/employer/candidates" class="nav-link">Browse Candidates</a>
+      <a href="/employer/membership" class="nav-link">Membership</a>
+      <a href="/logout" class="nav-link nav-danger">Logout</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="page-header">
+      <h1>🏢 Company Profile</h1>
+    </div>
+
+    <div id="success-message" class="alert alert-success" hidden></div>
+    <div id="error-message" class="alert alert-error" hidden></div>
+
+    <form id="company-profile-form" method="POST" action="/employer/company-profile">
+        <div class="grid-2" style="gap:28px; align-items:start;">
+            <div class="card">
+                <div class="card-title">📋 Company Information</div>
+
+                <div class="form-group">
+                    <label class="form-label">Company Name <span style="color:var(--error);">*</span></label>
+                    <input type="text" name="company_name" class="form-input" required placeholder="e.g. TechCorp Solutions">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Industry</label>
+                        <select name="industry" class="form-select">
+                            <option selected>Technology</option>
+                            <option>Finance</option>
+                            <option>Healthcare</option>
+                            <option>Education</option>
+                            <option>Retail</option>
+                            <option>Manufacturing</option>
+                            <option>Media</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Company Size</label>
+                        <select name="company_size" class="form-select">
+                            <option>1-10</option>
+                            <option selected>11-50</option>
+                            <option>51-200</option>
+                            <option>201-500</option>
+                            <option>500+</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Company Location</label>
+                    <input type="text" name="company_location" class="form-input" placeholder="e.g. New York, NY">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Company Description</label>
+                    <textarea name="company_description" class="form-textarea" rows="5" placeholder="Tell candidates about your company, culture, and mission…"></textarea>
+                </div>
+            </div>
+
+            <div>
+                <div class="card mb-24">
+                    <div class="card-title">📞 Contact Details</div>
+
+                    <div class="form-group">
+                        <label class="form-label">Company Email</label>
+                        <input type="email" name="company_email" class="form-input" placeholder="hr@yourcompany.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Company Phone</label>
+                        <input type="text" name="company_phone" class="form-input" placeholder="+1-800-0000">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">Website URL</label>
+                        <input type="url" name="website_url" class="form-input" placeholder="https://yourcompany.com">
+                    </div>
+                </div>
+
+                <div class="card">
+                    <button type="submit" class="btn btn-primary btn-full btn-lg">🏢 Save Company Profile</button>
+                    <p style="text-align:center; font-size:0.82rem; color:var(--text-muted); margin-top:12px;">
+                        Your company profile is shown to candidates when they view your job postings.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </form>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

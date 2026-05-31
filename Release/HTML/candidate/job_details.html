@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Details – TalentMatch</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">✦ TalentMatch</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="nav-links">
+      <a href="/candidate/dashboard" class="nav-link">Dashboard</a>
+      <a href="/candidate/profile" class="nav-link">My Profile</a>
+      <a href="/candidate/jobs" class="nav-link active">Browse Jobs</a>
+      <a href="/candidate/recommended-jobs" class="nav-link">Recommended</a>
+      <a href="/candidate/membership" class="nav-link">Membership</a>
+      <a href="/logout" class="nav-link nav-danger">Logout</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div style="margin-bottom:20px;">
+      <a href="/candidate/jobs" style="color:var(--text-muted); font-size:0.9rem;">← Back to Jobs</a>
+    </div>
+
+    <div id="apply-success" class="alert alert-success" hidden>
+      <span>🎉</span> Your application has been submitted!
+    </div>
+
+    <div class="detail-grid">
+      <div>
+        <div class="card mb-24">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:16px;">
+            <div>
+              <h1 style="font-size:1.8rem; margin-bottom:6px;" id="job-title">Job Title</h1>
+              <div style="font-size:1.05rem; color:var(--text-muted); margin-bottom:12px;" id="company-name">🏢 Company</div>
+            </div>
+            <span class="badge" id="job-status">Open</span>
+          </div>
+
+          <div style="display:flex; flex-wrap:wrap; gap:16px; margin-bottom:20px;">
+            <div style="display:flex; align-items:center; gap:6px; font-size:0.9rem; color:var(--text-muted);" id="job-location">📍 Location</div>
+            <div id="job-workmode"></div>
+            <div style="display:flex; align-items:center; gap:6px; font-size:0.9rem; color:var(--text-muted);" id="job-type">💼 Type</div>
+            <div style="display:flex; align-items:center; gap:6px; font-size:0.9rem; color:var(--text-muted);" id="job-level">📊 Level</div>
+            <div style="font-weight:700; color:var(--navy-primary); font-size:0.95rem;" id="job-salary">💰 Salary</div>
+          </div>
+
+          <form method="POST" action="apply">
+            <button type="submit" name="apply" class="btn btn-primary btn-lg">🚀 Apply Now</button>
+          </form>
+        </div>
+
+        <div class="card mb-24">
+          <div class="card-title">📄 Job Description</div>
+          <div style="line-height:1.8; color:var(--text-dark); white-space:pre-line;" id="job-description"></div>
+        </div>
+
+        <div class="card mb-24">
+          <div class="card-title">🛠 Required Skills</div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px;" id="required-skills"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🏢 About Company</div>
+          <p style="line-height:1.8; color:var(--text-dark);" id="company-description"></p>
+          <a href="#" target="_blank" class="btn btn-secondary btn-sm" style="margin-top:12px;">🔗 Visit Website</a>
+        </div>
+      </div>
+
+      <div>
+        <div class="card mb-24" style="border: 2px solid var(--border);">
+          <div class="card-title">🎯 Your Match Score</div>
+          <div style="display:flex; align-items:center; gap:16px; margin-bottom:16px;">
+            <div class="score-circle">0%</div>
+            <div>
+              <div style="font-size:1.4rem; font-weight:800; color:var(--navy-primary);">0%</div>
+              <div style="font-size:0.85rem; color:var(--text-muted);">Match</div>
+            </div>
+          </div>
+          <div class="match-bar-wrap">
+            <div class="match-bar" style="width:0%;"></div>
+          </div>
+          <div style="margin-top:16px;">
+            <div style="font-size:0.85rem; font-weight:600; color:var(--navy-primary); margin-bottom:8px;">Why you matched:</div>
+            <ul class="rec-reasons" id="match-reasons"></ul>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📋 Job Details</div>
+          <div class="detail-section"><h4>Education Required</h4><div class="detail-value" id="required-education"></div></div>
+          <div class="detail-section"><h4>Experience Required</h4><div class="detail-value" id="required-experience"></div></div>
+          <div class="detail-section"><h4>Job Type</h4><div class="detail-value" id="detail-job-type"></div></div>
+          <div class="detail-section"><h4>Career Level</h4><div class="detail-value" id="detail-career-level"></div></div>
+          <div class="detail-section"><h4>Application Deadline</h4><div class="detail-value" id="application-deadline"></div></div>
+          <div class="detail-section" style="margin-bottom:0;"><h4>Salary Range</h4><div class="detail-value" id="detail-salary-range"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

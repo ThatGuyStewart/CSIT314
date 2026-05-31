@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employer Dashboard – TalentMatch</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">✦ TalentMatch</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="nav-links">
+      <a href="/employer/dashboard" class="nav-link active">Dashboard</a>
+      <a href="/employer/company-profile" class="nav-link">Company Profile</a>
+      <a href="/employer/manage-jobs" class="nav-link">Manage Jobs</a>
+      <a href="/employer/candidates" class="nav-link">Browse Candidates</a>
+      <a href="/employer/membership" class="nav-link">Membership</a>
+      <a href="/logout" class="nav-link nav-danger">Logout</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="welcome-card">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+        <div>
+          <h2>Welcome! 👋</h2>
+          <p>Here's your hiring overview.</p>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span class="badge">Free</span>
+          <a href="/employer/membership" class="btn btn-warning btn-sm">Upgrade ↑</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-4 mb-32">
+      <div class="stat-card"><div class="stat-number" id="activeCount">0</div><div class="stat-label">Active Job Posts</div></div>
+      <div class="stat-card"><div class="stat-number" id="totalPosts">0</div><div class="stat-label">Total Posts</div></div>
+      <div class="stat-card"><div class="stat-number" id="totalCandidates">0</div><div class="stat-label">Candidates Available</div></div>
+      <div class="stat-card"><div class="stat-number">10</div><div class="stat-label">Rec. Limit</div></div>
+    </div>
+
+    <div class="grid-2" style="gap:28px; align-items:start;">
+      <div>
+        <div class="card mb-24">
+          <div class="card-title">🏢 Company Profile</div>
+          <p style="color:var(--text-muted); margin-bottom:12px;">Set up your company profile to attract more candidates.</p>
+          <a href="/employer/company-profile" class="btn btn-primary">Create Company Profile →</a>
+        </div>
+
+        <div class="card mb-24">
+          <div class="card-title">⚡ Quick Actions</div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <a href="/employer/create-job" class="btn btn-primary">+ Post a New Job</a>
+            <a href="/employer/candidates" class="btn btn-secondary">🔍 Browse Candidates</a>
+            <a href="/employer/recommended-candidates" class="btn btn-secondary">🎯 View Recommendations</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">⭐ Membership</div>
+          <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+            <span class="badge">Free</span>
+            <span style="font-weight:600;">Free Plan</span>
+          </div>
+          <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:12px;">Upgrade to Premium to unlock unlimited candidate recommendations.</p>
+          <a href="/employer/membership" class="btn btn-primary btn-sm">View Membership Options</a>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">
+          🎯 Top Candidates
+          <a href="/employer/recommended-candidates">See all →</a>
+        </div>
+        <div id="top-candidates"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

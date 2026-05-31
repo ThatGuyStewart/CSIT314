@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Browse Jobs – TalentMatch</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">✦ TalentMatch</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="nav-links">
+      <a href="/candidate/dashboard" class="nav-link">Dashboard</a>
+      <a href="/candidate/profile" class="nav-link">My Profile</a>
+      <a href="/candidate/jobs" class="nav-link active">Browse Jobs</a>
+      <a href="/candidate/recommended-jobs" class="nav-link">Recommended</a>
+      <a href="/candidate/membership" class="nav-link">Membership</a>
+      <a href="/logout" class="nav-link nav-danger">Logout</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="page-header">
+      <h1>💼 Browse Jobs</h1>
+      <button class="btn btn-secondary filter-toggle-btn">⚙ Filters</button>
+    </div>
+
+    <form method="GET" action="/candidate/jobs">
+      <div style="margin-bottom:16px;">
+        <div class="search-bar">
+          <input type="text" name="keyword" class="form-input" placeholder="Search by title, skill, or keyword…">
+          <button type="submit" class="btn btn-primary">Search</button>
+          <a href="/candidate/jobs" class="btn btn-secondary">Clear</a>
+        </div>
+      </div>
+
+      <div class="filter-panel">
+        <div class="filter-row">
+          <div class="form-group">
+            <label class="form-label">Location</label>
+            <input type="text" name="location" class="form-input" placeholder="e.g. New York">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Work Mode</label>
+            <select name="work_mode" class="form-select">
+              <option value="">All Modes</option>
+              <option>Remote</option>
+              <option>On-site</option>
+              <option>Hybrid</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Job Type</label>
+            <select name="job_type" class="form-select">
+              <option value="">All Types</option>
+              <option>Full-time</option>
+              <option>Part-time</option>
+              <option>Internship</option>
+              <option>Contract</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Career Level</label>
+            <select name="career_level" class="form-select">
+              <option value="">All Levels</option>
+              <option>Entry-level</option>
+              <option>Mid-level</option>
+              <option>Senior</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Salary Min ($)</label>
+            <input type="number" name="salary_min" class="form-input" min="0" step="5000" placeholder="e.g. 40000">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Salary Max ($)</label>
+            <input type="number" name="salary_max" class="form-input" min="0" step="5000" placeholder="e.g. 100000">
+          </div>
+        </div>
+        <div style="margin-top:16px; display:flex; gap:10px;">
+          <button type="submit" class="btn btn-primary">Apply Filters</button>
+          <a href="/candidate/jobs" class="btn btn-secondary">Clear All</a>
+        </div>
+      </div>
+    </form>
+
+    <div class="results-info">
+      Showing <span id="shownCount">0</span> of <strong id="totalCount">0</strong> jobs
+    </div>
+
+    <div class="grid-3" id="jobs-grid"></div>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

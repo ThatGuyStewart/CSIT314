@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile – TalentMatch</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">✦ TalentMatch</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="nav-links">
+      <a href="/candidate/dashboard" class="nav-link">Dashboard</a>
+      <a href="/candidate/profile" class="nav-link active">My Profile</a>
+      <a href="/candidate/jobs" class="nav-link">Browse Jobs</a>
+      <a href="/candidate/recommended-jobs" class="nav-link">Recommended</a>
+      <a href="/candidate/membership" class="nav-link">Membership</a>
+      <a href="/logout" class="nav-link nav-danger">Logout</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="page-header">
+      <h1>👤 My Profile</h1>
+    </div>
+
+    <div id="success-message" class="alert alert-success" hidden></div>
+    <div id="error-message" class="alert alert-error" hidden></div>
+
+    <form id="candidate-profile-form">
+        <div class="grid-2" style="gap:28px; align-items:start;">
+            <div class="card">
+                <div class="card-title">📋 Personal Information</div>
+
+                <div class="form-group">
+                    <label class="form-label">Contact Information</label>
+                    <input type="text" name="contact_info" class="form-input" placeholder="Phone number or LinkedIn URL">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Education Level</label>
+                        <select name="education" class="form-select">
+                            <option>High School</option>
+                            <option selected>Bachelor's</option>
+                            <option>Master's</option>
+                            <option>PhD</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Field of Study / Major</label>
+                        <input type="text" name="major" class="form-input" placeholder="e.g. Computer Science">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Years of Experience</label>
+                        <input type="number" name="years_experience" class="form-input" min="0" max="50" placeholder="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Employment Type Preference</label>
+                        <select name="employment_type" class="form-select">
+                            <option selected>Full-time</option>
+                            <option>Part-time</option>
+                            <option>Internship</option>
+                            <option>Contract</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Work Experience</label>
+                    <textarea name="work_experience" class="form-textarea" rows="5" placeholder="Describe your previous roles, responsibilities, and achievements…"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Professional Summary</label>
+                    <textarea name="summary" class="form-textarea" rows="4" placeholder="A brief summary of who you are and what you're looking for…"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Portfolio / GitHub URL</label>
+                    <input type="url" name="portfolio_url" class="form-input" placeholder="https://yourportfolio.com">
+                </div>
+            </div>
+
+            <div>
+                <div class="card mb-24">
+                    <div class="card-title">🛠 Skills</div>
+                    <div class="form-group">
+                        <label class="form-label">Skills <span class="text-muted" style="font-weight:400;">(comma-separated)</span></label>
+                        <input type="text" name="skills" id="skills-input" class="form-input" placeholder="PHP, JavaScript, React, MySQL…">
+                        <div class="form-hint">Separate each skill with a comma. Be specific!</div>
+                    </div>
+                    <div id="skills-preview" class="skills-preview"></div>
+                </div>
+
+                <div class="card mb-24">
+                    <div class="card-title">📍 Work Preferences</div>
+                    <div class="form-group">
+                        <label class="form-label">Preferred Work Mode</label>
+                        <select name="preferred_work_mode" class="form-select">
+                            <option>Remote</option>
+                            <option>On-site</option>
+                            <option selected>Hybrid</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Preferred Location</label>
+                        <input type="text" name="preferred_location" class="form-input" placeholder="e.g. New York, Remote">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">Expected Annual Salary (USD)</label>
+                        <input type="number" name="expected_salary" class="form-input" min="0" step="1000" placeholder="e.g. 70000">
+                    </div>
+                </div>
+
+                <div class="card">
+                    <button type="submit" class="btn btn-primary btn-full btn-lg">💾 Save Profile</button>
+                    <p style="text-align:center; font-size:0.82rem; color:var(--text-muted); margin-top:12px;">
+                        Your profile is used to match you with relevant job opportunities.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </form>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+  <script>
+    const skillsInput = document.getElementById('skills-input');
+    const skillsPreview = document.getElementById('skills-preview');
+
+    function renderPills(value) {
+      skillsPreview.innerHTML = '';
+      value.split(',').map(s => s.trim()).filter(Boolean).forEach(skill => {
+        const span = document.createElement('span');
+        span.className = 'skill-tag';
+        span.textContent = skill;
+        skillsPreview.appendChild(span);
+      });
+    }
+
+    if (skillsInput) {
+      skillsInput.addEventListener('input', () => renderPills(skillsInput.value));
+      renderPills(skillsInput.value);
+    }
+  </script>
+</body>
+</html>

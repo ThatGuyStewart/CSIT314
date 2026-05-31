@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Jobs – TalentMatch Admin</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">✦ TalentMatch Admin</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="nav-links">
+      <a href="/admin/dashboard" class="nav-link">Dashboard</a>
+      <a href="/admin/users" class="nav-link">Manage Users</a>
+      <a href="/admin/jobs" class="nav-link active">Manage Jobs</a>
+      <a href="/logout" class="nav-link nav-danger">Logout</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="page-header">
+      <h1>💼 Manage Job Postings</h1>
+      <div style="font-size:0.9rem; color:var(--text-muted);"><span id="totalJobs">0</span> jobs total</div>
+    </div>
+
+    <div id="success-message" class="alert alert-success" hidden></div>
+    <div id="error-message" class="alert alert-error" hidden></div>
+
+    <div class="filter-panel mb-24">
+      <form method="GET" action="/admin/jobs">
+        <div class="filter-row">
+          <div class="form-group">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-input" placeholder="Job title or company…">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-select">
+              <option value="">All Statuses</option>
+              <option value="Open">Open</option>
+              <option value="Closed">Closed</option>
+            </select>
+          </div>
+          <div class="form-group" style="align-self:flex-end;">
+            <button type="submit" class="btn btn-primary">Search</button>
+            <a href="/admin/jobs" class="btn btn-secondary" style="margin-left:8px;">Clear</a>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Job Title</th>
+            <th>Company</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Deadline</th>
+            <th>Posted</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="jobs-table-body">
+          <tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:40px;">No jobs loaded.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

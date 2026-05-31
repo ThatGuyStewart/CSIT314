@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard – TalentMatch</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">✦ TalentMatch Admin</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="nav-links">
+      <a href="/admin/dashboard" class="nav-link active">Dashboard</a>
+      <a href="/admin/users" class="nav-link">Manage Users</a>
+      <a href="/admin/jobs" class="nav-link">Manage Jobs</a>
+      <a href="/logout" class="nav-link nav-danger">Logout</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="welcome-card" style="margin-bottom:32px;">
+      <h2>Admin Dashboard 🛠</h2>
+      <p>Platform overview and management tools.</p>
+    </div>
+
+    <h2 class="section-title" style="margin-bottom:20px;">Platform Statistics</h2>
+    <div class="grid-4 mb-32">
+      <div class="stat-card"><div class="stat-number" id="totalUsers">0</div><div class="stat-label">Total Users</div></div>
+      <div class="stat-card"><div class="stat-number" id="totalCandidates">0</div><div class="stat-label">Candidates</div></div>
+      <div class="stat-card"><div class="stat-number" id="totalEmployers">0</div><div class="stat-label">Employers</div></div>
+      <div class="stat-card"><div class="stat-number" id="premiumUsers">0</div><div class="stat-label">Premium Members</div></div>
+    </div>
+
+    <div class="grid-4 mb-32">
+      <div class="stat-card"><div class="stat-number" id="totalJobs">0</div><div class="stat-label">Total Jobs</div></div>
+      <div class="stat-card"><div class="stat-number" id="openJobs">0</div><div class="stat-label">Open Jobs</div></div>
+      <div class="stat-card"><div class="stat-number" id="totalProfiles">0</div><div class="stat-label">Candidate Profiles</div></div>
+      <div class="stat-card"><div class="stat-number" id="totalCompanies">0</div><div class="stat-label">Company Profiles</div></div>
+    </div>
+
+    <div class="grid-2" style="gap:28px;">
+      <div>
+        <div class="section-title">
+          👥 Recent Users
+          <a href="/admin/users">View All →</a>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Name</th><th>Role</th><th>Plan</th><th>Joined</th></tr>
+            </thead>
+            <tbody id="recentUsersTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">
+          💼 Recent Jobs
+          <a href="/admin/jobs">View All →</a>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Job Title</th><th>Company</th><th>Status</th><th>Posted</th></tr>
+            </thead>
+            <tbody id="recentJobsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:32px;" class="card">
+      <div class="card-title">⚡ Quick Actions</div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <a href="/admin/users" class="btn btn-primary">👥 Manage Users</a>
+        <a href="/admin/jobs" class="btn btn-secondary">💼 Manage Jobs</a>
+        <a href="/setup" class="btn btn-secondary">🛠 Run Setup</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

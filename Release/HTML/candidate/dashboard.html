@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard – TalentMatch</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">✦ TalentMatch</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="nav-links">
+      <a href="/candidate/dashboard" class="nav-link active">Dashboard</a>
+      <a href="/candidate/profile" class="nav-link">My Profile</a>
+      <a href="/candidate/jobs" class="nav-link">Browse Jobs</a>
+      <a href="/candidate/recommended-jobs" class="nav-link">Recommended</a>
+      <a href="/candidate/membership" class="nav-link">Membership</a>
+      <a href="/logout" class="nav-link nav-danger">Logout</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="welcome-card">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+        <div>
+          <h2>Welcome back! 👋</h2>
+          <p>Here's your talent matching overview.</p>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span class="badge">Free</span>
+          <a href="/candidate/membership" class="btn btn-warning btn-sm">Upgrade ↑</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-4 mb-32">
+      <div class="stat-card"><div class="stat-number" id="recommendedCount">0</div><div class="stat-label">Recommended Jobs</div></div>
+      <div class="stat-card"><div class="stat-number" id="profileComplete">0%</div><div class="stat-label">Profile Complete</div></div>
+      <div class="stat-card"><div class="stat-number" id="jobCount">0</div><div class="stat-label">Open Positions</div></div>
+      <div class="stat-card"><div class="stat-number">10</div><div class="stat-label">Rec. Limit</div></div>
+    </div>
+
+    <div class="grid-2" style="gap:28px; align-items:start;">
+      <div>
+        <div class="card mb-24">
+          <div class="card-title">📋 Profile Completion</div>
+          <div class="completion-bar-wrap">
+            <div class="completion-bar" style="width:0%;"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:0.88rem; color:var(--text-muted);">
+            <span>0% complete</span>
+            <a href="/candidate/profile">Edit Profile →</a>
+          </div>
+        </div>
+
+        <div class="card mb-24">
+          <div class="card-title">🔍 Quick Job Search</div>
+          <form method="GET" action="/candidate/jobs">
+            <div class="search-bar">
+              <input type="text" name="keyword" class="form-input" placeholder="e.g. Software Developer, Data Analyst…">
+              <button type="submit" class="btn btn-primary">Search</button>
+            </div>
+          </form>
+          <p style="margin-top:12px; font-size:0.85rem; color:var(--text-muted);">
+            Or <a href="/candidate/jobs">browse all open positions →</a>
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-title">⭐ Membership Status</div>
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+            <span class="badge">Free</span>
+            <span style="font-weight:600; font-size:1.05rem;">Free Plan</span>
+          </div>
+          <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:16px;">
+            You are on the <strong>Free</strong> plan. You can view up to <strong>10</strong> job recommendations.
+          </p>
+          <a href="/candidate/membership" class="btn btn-primary btn-sm">View Membership Options</a>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">
+          🎯 Top Recommended Jobs
+          <a href="/candidate/recommended-jobs">See all →</a>
+        </div>
+        <div id="top-recommendations"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

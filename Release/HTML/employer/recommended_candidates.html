@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recommended Candidates – TalentMatch</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">✦ TalentMatch</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="nav-links">
+        <a href="/employer/dashboard" class="nav-link">Dashboard</a>
+        <a href="/employer/company-profile" class="nav-link">Company Profile</a>
+        <a href="/employer/manage-jobs" class="nav-link">Manage Jobs</a>
+        <a href="/employer/candidates" class="nav-link">Browse Candidates</a>
+        <a href="/employer/membership" class="nav-link">Membership</a>
+        <a href="/logout" class="nav-link nav-danger">Logout</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="page-header">
+      <div>
+        <h1>🎯 Recommended Candidates</h1>
+        <p style="color:var(--text-muted); margin-top:4px;">Ranked by match score for your selected job posting.</p>
+      </div>
+      <span class="badge">Free</span>
+    </div>
+
+    <div class="card mb-24">
+      <div class="card-title">Select Job Posting</div>
+      <form method="GET" action="/employer/recommended-candidates" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+          <div style="flex:1; min-width:250px;">
+              <label class="form-label">Job Posting</label>
+              <select name="job_id" class="form-select">
+                  <option value="">Select a job…</option>
+              </select>
+          </div>
+          <button type="submit" class="btn btn-primary">Get Recommendations</button>
+      </form>
+    </div>
+
+    <div class="results-info">
+      Showing <strong id="visible-count">0</strong> of <strong id="total-count">0</strong> matched candidates
+    </div>
+
+    <div class="grid-2" style="gap:24px;" id="recommendations-grid"></div>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>
