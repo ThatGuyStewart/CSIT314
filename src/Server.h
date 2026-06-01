@@ -3,23 +3,16 @@
 #include "DataService.h"
 #include <string>
 #include <httplib.h>
-#include <set>
 #include <unordered_map>
 #include <mutex>
-#include <atomic>
-#include <thread>
-#include <condition_variable>
 #include <memory>
 
 // Session management struct.
 struct Sessions
 {
 	std::mutex sessionMutex;
-	std::mutex websocketMutex;
 	std::unordered_map<std::string, std::string> tokenToUsername;
 	std::unordered_map<std::string, std::string> usernameToToken;
-	std::unordered_map<httplib::ws::WebSocket*, std::string> websocketToToken;
-	std::set<httplib::ws::WebSocket*> websockets;
 };
 
 // Main server class, inherits from SSLServer to support HTTPS.
@@ -27,18 +20,9 @@ struct Sessions
 class Server : public httplib::SSLServer
 {
 private:
-	struct BroadcasterThreadState
-	{
-		std::atomic<bool> running{ false };
-		std::thread thread;
-		std::mutex mutex;
-		std::condition_variable_any cv;
-	};
-
 	DataService& m_service;
 	const std::string m_address;
 	const int m_port;
-	BroadcasterThreadState m_broadcasterThread;
 	Sessions m_sessions;
 
 	std::string loadFile(const std::string& path);
@@ -85,11 +69,6 @@ private:
 	void handleApiAdminCandidateDetails(const httplib::Request& req, httplib::Response& res);
 	void handleApiAdminEmployerDetails(const httplib::Request& req, httplib::Response& res);
 	void handleApiAdminJobDetails(const httplib::Request& req, httplib::Response& res);
-
-	void createWebsocketRoute();
-	void startWebsocketBroadcaster();
-	void handleWebsocketMessage(httplib::ws::WebSocket& ws, const std::string& msg);
-	void cleanupOnClose(httplib::ws::WebSocket& ws);
 	bool tryRequireRole(const httplib::Request& req, httplib::Response& res, const std::string& requiredRole, std::string& user);
 	void createProtectedPageRoute(const std::string& route, const std::string& role, const std::string& filePath);
 

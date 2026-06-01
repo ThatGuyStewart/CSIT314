@@ -19,10 +19,6 @@ Server::Server(DataService& service, const char* cert, const char* key, std::str
 Server::~Server()
 {
 	stop();
-	if (m_broadcasterThread.thread.joinable())
-	{
-		m_broadcasterThread.thread.join();
-	}
 }
 
 std::string Server::loadFile(const std::string& path) 
@@ -198,8 +194,6 @@ void Server::createRoutes()
 	createProtectedPageRoute("/admin/candidate", "admin", "HTML/admin/candidate_details.html");
 	createProtectedPageRoute("/admin/employer", "admin", "HTML/admin/employer_details.html");
 	createProtectedPageRoute("/admin/job", "admin", "HTML/admin/job_details.html");
-
-	createWebsocketRoute();
 }
 
 
@@ -1490,179 +1484,6 @@ void Server::handleApiEmployerCompanyProfilePost(const httplib::Request& req, ht
 	}
 }
 
-void Server::createWebsocketRoute() 
-{
-	WebSocket("/ws", [&](const httplib::Request& req, httplib::ws::WebSocket& ws)
-		{
-			std::string token = getTokenFromCookie(req);
-			if (!token.empty())
-			{
-				std::lock_guard<std::mutex> lock(m_sessions.sessionMutex);
-				if (m_sessions.tokenToUsername.find(token) == m_sessions.tokenToUsername.end()) token.clear();
-			}
-
-			{
-				std::lock_guard<std::mutex> lock(m_sessions.websocketMutex);
-				m_sessions.websockets.insert(&ws);
-				m_sessions.websocketToToken[&ws] = token;
-			}
-
-			if (!token.empty())
-			{
-
-
-				const std::string user = getUsernameForToken(token);
-				if (!user.empty())
-				{
-
-				}
-			}
-
-			std::string msg;
-			while (ws.is_open())
-			{
-				auto res = ws.read(msg);
-				if (res == httplib::ws::ReadResult::Fail) break;
-				if (res == httplib::ws::ReadResult::Text)
-				{
-					handleWebsocketMessage(ws, msg);
-				}
-			}
-
-			cleanupOnClose(ws);
-		});
-}
-
-void Server::handleWebsocketMessage(httplib::ws::WebSocket& ws, const std::string& msg)
-{
-	try
-	{
-		auto parsed = nlohmann::json::parse(msg);
-		auto type = parsed.value("type", std::string());
-
-		if (type == "login")
-		{
-			std::string user = parsed.value("username", std::string());
-			std::string pass = parsed.value("password", std::string());
-
-			if (validateAccount(user, pass))
-			{
-				std::string newToken = createToken();
-				{
-					std::lock_guard<std::mutex> lock(m_sessions.sessionMutex);
-					auto oldToken = m_sessions.usernameToToken.find(user);
-					if (oldToken != m_sessions.usernameToToken.end())
-					{
-						m_sessions.tokenToUsername.erase(oldToken->second);
-					}
-
-					m_sessions.tokenToUsername[newToken] = user;
-					m_sessions.usernameToToken[user] = newToken;
-				}
-
-				const std::string role = m_service.getAccountRole(user).value_or("");
-				if (role != "admin" && role != "employer" && role != "candidate")
-				{
-					nlohmann::json reply =
-					{
-						{"type", "login"},
-						{"status", "error"},
-						{"error", "invalid account role"}
-					};
-
-					ws.send(reply.dump());
-					return;
-				}
-
-				{
-					std::lock_guard<std::mutex> lock2(m_sessions.websocketMutex);
-					m_sessions.websocketToToken[&ws] = newToken;
-				}
-
-				nlohmann::json reply =
-				{
-					{"type", "login"},
-					{"status", "ok"},
-					{"token", newToken},
-					{"user", user},
-					{"role", role}
-				};
-
-				ws.send(reply.dump());
-
-			}
-			else
-			{
-				nlohmann::json reply =
-				{
-					{"type", "login"},
-					{"status", "error"},
-					{"error", "invalid credentials"}
-				};
-
-			ws.send(reply.dump());
-			}
-		}
-	}
-	catch (...)
-	{
-		std::cout << "Error handling websocket message. Ignoring." << std::endl;
-	}
-}
-
-void Server::cleanupOnClose(httplib::ws::WebSocket& ws)
-{
-	std::string associatedToken;
-
-	{
-		std::lock_guard<std::mutex> lock(m_sessions.websocketMutex);
-		m_sessions.websockets.erase(&ws);
-
-		auto websocketIt = m_sessions.websocketToToken.find(&ws);
-		if (websocketIt != m_sessions.websocketToToken.end())
-		{
-			associatedToken = websocketIt->second;
-			m_sessions.websocketToToken.erase(websocketIt);
-		}
-	}
-
-	if (!associatedToken.empty())
-	{
-		std::lock_guard<std::mutex> lock(m_sessions.sessionMutex);
-
-		auto tokenIt = m_sessions.tokenToUsername.find(associatedToken);
-		if (tokenIt != m_sessions.tokenToUsername.end())
-		{
-			const std::string user = tokenIt->second;
-			m_sessions.tokenToUsername.erase(tokenIt);
-
-			auto userIt = m_sessions.usernameToToken.find(user);
-			if (userIt != m_sessions.usernameToToken.end() && userIt->second == associatedToken)
-			{
-				m_sessions.usernameToToken.erase(userIt);
-			}
-		}
-	}
-}
-
-void Server::startWebsocketBroadcaster()
-{
-	if (m_broadcasterThread.thread.joinable()) return;
-
-	m_broadcasterThread.thread = std::thread([this]()
-	{
-		while (m_broadcasterThread.running.load())
-		{
-
-			std::unique_lock<std::mutex> lock(m_broadcasterThread.mutex);
-			m_broadcasterThread.cv.wait_for(
-				lock,
-				std::chrono::seconds(1),
-				[this]() { return !m_broadcasterThread.running.load(); });
-		}
-	});
-}
-
 bool Server::tryRequireRole(const httplib::Request& req, httplib::Response& res, const std::string& requiredRole, std::string& user)
 {
 	if (!tryGetAuthenticatedUser(req, user))
@@ -1698,83 +1519,27 @@ void Server::createProtectedPageRoute(const std::string& route, const std::strin
 
 void Server::start() 
 {
-	if (m_broadcasterThread.running.exchange(true)) return;
 	try 
 	{
 		std::cout << "Server starting at https://" << m_address << ":" << m_port << "\nPress Ctrl+C to stop and quit." << std::endl;
-		startWebsocketBroadcaster();
 		if (!listen(m_address, m_port)) 
 		{
-			m_broadcasterThread.running.store(false);
-			m_broadcasterThread.cv.notify_all();
-			if (m_broadcasterThread.thread.joinable())
-			{
-				m_broadcasterThread.thread.join();
-			}
 			throw std::runtime_error("Server failed to start.");
 		}
 	}
 	catch (const std::exception& e) 
 	{
 		std::cout << "Runtime error. " << e.what() << " Server not running." << std::endl;
-		m_broadcasterThread.running.store(false);
-		m_broadcasterThread.cv.notify_all();
-		if (m_broadcasterThread.thread.joinable())
-		{
-			m_broadcasterThread.thread.join();
-		}
 		throw;
 	}
 	catch (...) 
 	{
 		std::cout << "Unexpected error. Server not running." << std::endl;
-		m_broadcasterThread.running.store(false);
-		m_broadcasterThread.cv.notify_all();
-		if (m_broadcasterThread.thread.joinable())
-		{
-			m_broadcasterThread.thread.join();
-		}
 		throw;
-	}
-
-	m_broadcasterThread.running.store(false);
-	m_broadcasterThread.cv.notify_all();
-	if (m_broadcasterThread.thread.joinable())
-	{
-		m_broadcasterThread.thread.join();
 	}
 }
 
 void Server::stop() 
 {
-	if (!m_broadcasterThread.running.exchange(false)) return;
-
-	m_broadcasterThread.cv.notify_all();
-
-	std::vector<httplib::ws::WebSocket*> websocketsToClose;
-	{
-		std::lock_guard<std::mutex> lock(m_sessions.websocketMutex);
-		websocketsToClose.reserve(m_sessions.websockets.size());
-
-		for (httplib::ws::WebSocket* ws : m_sessions.websockets)
-		{
-			if (ws != nullptr)
-			{
-				websocketsToClose.push_back(ws);
-			}
-		}
-	}
-
-	for (httplib::ws::WebSocket* ws : websocketsToClose)
-	{
-		try
-		{
-			ws->close(httplib::ws::CloseStatus::GoingAway, "Server shutting down");
-		}
-		catch (...)
-		{
-		}
-	}
-
 	httplib::SSLServer::stop();
 }
