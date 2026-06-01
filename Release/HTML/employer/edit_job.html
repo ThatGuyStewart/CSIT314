@@ -27,12 +27,14 @@
         <a href="/employer/manage-jobs" style="color:var(--text-muted); font-size:0.9rem;">← Back to Jobs</a>
         <h1 style="margin-top:8px;">✏ Edit Job Posting</h1>
       </div>
-      <span class="badge">Open</span>
+      <span class="badge" id="job-status-badge">Open</span>
     </div>
 
+    <div id="success-message" class="alert alert-success" hidden></div>
     <div id="error-message" class="alert alert-error" hidden></div>
 
-    <form method="POST" action="/employer/edit-job">
+    <form id="edit-job-form" method="POST" action="/employer/edit-job">
+      <input type="hidden" name="job_id">
       <div class="grid-2" style="gap:28px; align-items:start;">
         <div>
           <div class="card mb-24">

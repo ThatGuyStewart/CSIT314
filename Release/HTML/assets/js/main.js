@@ -138,6 +138,130 @@
     }
   }
 
+  async function loadEmployerEditJob() {
+    const form = document.querySelector('#edit-job-form');
+    if (!form) return;
+
+    const errorBox = document.querySelector('#error-message');
+    const successBox = document.querySelector('#success-message');
+    const statusBadge = document.querySelector('#job-status-badge');
+    const params = new URLSearchParams(window.location.search);
+    const jobId = params.get('id');
+    const requiredSkillsInput = document.querySelector('#required-skills-input');
+    const requiredSkillsPreview = document.querySelector('#required-skills-preview');
+
+    const setMessage = (element, message) => {
+      if (!element) return;
+      element.textContent = message;
+      element.hidden = !message;
+    };
+
+    const renderSkills = (value) => {
+      if (!requiredSkillsPreview) return;
+      requiredSkillsPreview.innerHTML = renderSkillBadges(value);
+    };
+
+    if (!jobId) {
+      setMessage(errorBox, 'Missing job id.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/employer/edit-job?id=${encodeURIComponent(jobId)}`, { credentials: 'same-origin' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.job) {
+        setMessage(errorBox, data.error || 'Unable to load job details.');
+        return;
+      }
+
+      const job = data.job;
+      const setFieldValue = (name, value) => {
+        const field = form.querySelector(`[name="${name}"]`);
+        if (field) {
+          field.value = value ?? '';
+        }
+      };
+
+      setFieldValue('job_id', job.id);
+      setFieldValue('job_title', job.title);
+      setFieldValue('job_description', job.jobDescription);
+      setFieldValue('required_skills', job.requiredSkills);
+      setFieldValue('required_education', job.requiredEducation || 'Any');
+      setFieldValue('required_experience', Number(job.requiredExperience || 0));
+      setFieldValue('career_level', job.careerLevel || 'Entry-level');
+      setFieldValue('job_type', job.type || 'Full-time');
+      setFieldValue('work_mode', job.workMode || 'On-site');
+      setFieldValue('job_location', job.location);
+      setFieldValue('salary_min', job.salaryMin);
+      setFieldValue('salary_max', job.salaryMax);
+      setFieldValue('application_deadline', job.deadline);
+      setFieldValue('status', job.status || 'Open');
+
+      if (statusBadge) {
+        statusBadge.textContent = job.status || 'Open';
+      }
+
+      renderSkills(job.requiredSkills || '');
+      setMessage(errorBox, '');
+      setMessage(successBox, '');
+    } catch {
+      setMessage(errorBox, 'Unable to load job details.');
+      return;
+    }
+
+    if (requiredSkillsInput) {
+      requiredSkillsInput.addEventListener('input', () => {
+        renderSkills(requiredSkillsInput.value);
+      });
+    }
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!validateSalaryRange()) return;
+
+      const formData = new FormData(form);
+      const payload = {
+        jobId: Number(formData.get('job_id') || 0),
+        job_title: String(formData.get('job_title') || ''),
+        job_description: String(formData.get('job_description') || ''),
+        required_skills: String(formData.get('required_skills') || ''),
+        required_education: String(formData.get('required_education') || 'Any'),
+        required_experience: Number(formData.get('required_experience') || 0),
+        career_level: String(formData.get('career_level') || 'Entry-level'),
+        job_type: String(formData.get('job_type') || 'Full-time'),
+        work_mode: String(formData.get('work_mode') || 'On-site'),
+        job_location: String(formData.get('job_location') || ''),
+        salary_min: String(formData.get('salary_min') || ''),
+        salary_max: String(formData.get('salary_max') || ''),
+        application_deadline: String(formData.get('application_deadline') || ''),
+        status: String(formData.get('status') || 'Open')
+      };
+
+      try {
+        const response = await fetch('/api/employer/edit-job', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          setMessage(successBox, '');
+          setMessage(errorBox, data.error || 'Unable to save job changes.');
+          return;
+        }
+
+        window.location.href = '/employer/manage-jobs?success=' + encodeURIComponent('Job updated successfully.');
+      } catch {
+        setMessage(successBox, '');
+        setMessage(errorBox, 'Unable to save job changes.');
+      }
+    });
+  }
+
   function applyPlanPresentation(options) {
     const status = formatMembershipStatus(options.status);
     const isPremium = status.toLowerCase() === 'premium';
@@ -1875,7 +1999,13 @@
         '/employer/recommended-candidates': typeof loadEmployerRecommendedCandidatesPage === 'function' ? loadEmployerRecommendedCandidatesPage : null,
         '/employer/recommended_candidates': typeof loadEmployerRecommendedCandidatesPage === 'function' ? loadEmployerRecommendedCandidatesPage : null,
         '/employer/candidate': typeof loadEmployerCandidateDetails === 'function' ? loadEmployerCandidateDetails : null,
+        '/employer/candidate-details': typeof loadEmployerCandidateDetails === 'function' ? loadEmployerCandidateDetails : null,
+        '/employer/candidate_details': typeof loadEmployerCandidateDetails === 'function' ? loadEmployerCandidateDetails : null,
+        '/employer/manage-jobs': typeof loadEmployerJobs === 'function' ? loadEmployerJobs : null,
+        '/employer/manage_jobs': typeof loadEmployerJobs === 'function' ? loadEmployerJobs : null,
         '/employer/jobs': typeof loadEmployerJobs === 'function' ? loadEmployerJobs : null,
+        '/employer/edit-job': typeof loadEmployerEditJob === 'function' ? loadEmployerEditJob : null,
+        '/employer/edit_job': typeof loadEmployerEditJob === 'function' ? loadEmployerEditJob : null,
         '/admin': typeof loadAdminDashboard === 'function' ? loadAdminDashboard : null,
         '/admin/dashboard': typeof loadAdminDashboard === 'function' ? loadAdminDashboard : null,
         '/admin/users': typeof loadAdminUsers === 'function' ? loadAdminUsers : null,
