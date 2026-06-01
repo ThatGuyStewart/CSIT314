@@ -150,6 +150,8 @@ void Server::createRoutes()
 	Post("/api/employer/company-profile", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerCompanyProfilePost(req, res); });
 	Post("/api/employer/company_profile", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerCompanyProfilePost(req, res); });
 	Get("/api/employer/jobs", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerJobs(req, res); });
+	Get("/api/employer/edit-job", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerEditJobGet(req, res); });
+	Post("/api/employer/edit-job", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerEditJobPost(req, res); });
 	Get("/api/admin/users", [&](const httplib::Request& req, httplib::Response& res) { handleApiAdminUsers(req, res); });
 	Get("/api/admin/dashboard", [&](const httplib::Request& req, httplib::Response& res) { handleApiAdminDashboard(req, res); });
 	Get("/api/admin/jobs", [&](const httplib::Request& req, httplib::Response& res) { handleApiAdminJobs(req, res); });
@@ -169,10 +171,14 @@ void Server::createRoutes()
 	createProtectedPageRoute("/employer/company-profile", "employer", "HTML/employer/company_profile.html");
 	createProtectedPageRoute("/employer/create-job", "employer", "HTML/employer/create_job.html");
 	createProtectedPageRoute("/employer/manage-jobs", "employer", "HTML/employer/manage_jobs.html");
+	createProtectedPageRoute("/employer/edit-job", "employer", "HTML/employer/edit_job.html");
 	createProtectedPageRoute("/employer/candidates", "employer", "HTML/employer/candidates.html");
 	createProtectedPageRoute("/employer/candidate", "employer", "HTML/employer/candidate_details.html");
+	createProtectedPageRoute("/employer/candidate-details", "employer", "HTML/employer/candidate_details.html");
+	createProtectedPageRoute("/employer/candidate_details", "employer", "HTML/employer/candidate_details.html");
 	createProtectedPageRoute("/employer/membership", "employer", "HTML/employer/membership.html");
 	createProtectedPageRoute("/employer/company_profile", "employer", "HTML/employer/company_profile.html");
+	createProtectedPageRoute("/employer/edit_job", "employer", "HTML/employer/edit_job.html");
 	createProtectedPageRoute("/employer/manage_jobs", "employer", "HTML/employer/manage_jobs.html");
 	createProtectedPageRoute("/employer/browse_candidates", "employer", "HTML/employer/candidates.html");
 	createProtectedPageRoute("/employer/browse-candidates", "employer", "HTML/employer/candidates.html");
@@ -924,6 +930,108 @@ void Server::handleApiEmployerJobs(const httplib::Request& req, httplib::Respons
 	}
 
 	res.set_content(nlohmann::json({ {"status", "ok"}, {"jobs", jobs} }).dump(), "application/json");
+}
+
+void Server::handleApiEmployerEditJobGet(const httplib::Request& req, httplib::Response& res)
+{
+	std::string user;
+	if (!tryRequireRole(req, res, "employer", user)) return;
+
+	if (!req.has_param("id"))
+	{
+		res.status = 400;
+		res.set_content(R"({"error":"missing job id"})", "application/json");
+		return;
+	}
+
+	try
+	{
+		const long long jobId = std::stoll(req.get_param_value("id"));
+		const auto job = m_service.getEmployerJobDetails(user, jobId);
+		if (!job.has_value())
+		{
+			res.status = 404;
+			res.set_content(R"({"error":"job not found"})", "application/json");
+			return;
+		}
+
+		nlohmann::json payload = {
+			{"id", job->id},
+			{"title", job->title},
+			{"company", job->company},
+			{"type", job->type},
+			{"careerLevel", job->careerLevel},
+			{"status", job->status},
+			{"deadline", job->deadline},
+			{"posted", job->posted},
+			{"location", job->location},
+			{"workMode", job->workMode},
+			{"salaryRange", job->salaryRange},
+			{"requiredSkills", job->requiredSkills},
+			{"requiredEducation", job->requiredEducation},
+			{"requiredExperience", job->requiredExperience},
+			{"jobDescription", job->jobDescription},
+			{"salaryMin", job->salaryMin},
+			{"salaryMax", job->salaryMax}
+		};
+
+		res.set_content(nlohmann::json({ {"status", "ok"}, {"job", payload} }).dump(), "application/json");
+	}
+	catch (const std::exception&)
+	{
+		res.status = 400;
+		res.set_content(R"({"error":"invalid job id"})", "application/json");
+	}
+}
+
+void Server::handleApiEmployerEditJobPost(const httplib::Request& req, httplib::Response& res)
+{
+	std::string user;
+	if (!tryRequireRole(req, res, "employer", user))
+	{
+		return;
+	}
+
+	try
+	{
+		auto j = nlohmann::json::parse(req.body);
+		const long long jobId = j.value("jobId", 0LL);
+		if (jobId <= 0)
+		{
+			res.status = 400;
+			res.set_content(R"({"error":"missing job id"})", "application/json");
+			return;
+		}
+
+		S_JobListing input;
+		input.jobTitle = j.value("job_title", "");
+		input.jobDescription = j.value("job_description", "");
+		input.requiredEducation = j.value("required_education", "Any");
+		input.requiredSkills = j.value("required_skills", "");
+		input.requiredExperience = j.value("required_experience", 0);
+		input.workMode = j.value("work_mode", "On-site");
+		input.jobLocation = j.value("job_location", "");
+		input.salaryMin = j.value("salary_min", "");
+		input.salaryMax = j.value("salary_max", "");
+		input.jobType = j.value("job_type", "Full-time");
+		input.careerLevel = j.value("career_level", "Entry-level");
+		input.applicationDeadline = j.value("application_deadline", "");
+		input.status = j.value("status", "Open");
+
+		if (!m_service.updateEmployerJob(user, jobId, input))
+		{
+			res.status = 400;
+			res.set_content(R"({"error":"failed to update job"})", "application/json");
+			return;
+		}
+
+		res.set_content(R"({"status":"ok"})", "application/json");
+	}
+	catch (const nlohmann::json::parse_error&)
+	{
+		res.status = 400;
+		res.set_content(R"({"error":"invalid json"})", "application/json");
+	}
 }
 
 void Server::handleApiAdminUsers(const httplib::Request& req, httplib::Response& res)

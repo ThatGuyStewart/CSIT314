@@ -77,6 +77,114 @@ namespace
 	}
 }
 
+std::optional<S_JobCard> Database::getEmployerJobDetails(const std::string& email, long long jobId)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
+	if (!isConnected()) return std::nullopt;
+
+	try
+	{
+		pqxx::read_transaction tx(*m_connection);
+		const auto result = tx.exec_params(
+			"SELECT "
+			"    jp.id, "
+			"    jp.job_title AS title, "
+			"    COALESCE(cp.company_name, u.full_name) AS company, "
+			"    COALESCE(cp.company_description, '') AS company_description, "
+			"    COALESCE(cp.website_url, '') AS company_website_url, "
+			"    jp.job_type AS type, "
+			"    COALESCE(jp.career_level, '') AS career_level, "
+			"    jp.status, "
+			"    COALESCE(TO_CHAR(jp.application_deadline, 'YYYY-MM-DD'), '') AS deadline, "
+			"    TO_CHAR(jp.created_at, 'YYYY-MM-DD') AS posted, "
+			"    COALESCE(jp.job_location, '') AS location, "
+			"    COALESCE(jp.work_mode, '') AS work_mode, "
+			"    COALESCE(jp.required_skills, '') AS required_skills, "
+			"    COALESCE(jp.required_education, '') AS required_education, "
+			"    COALESCE(jp.required_experience, 0) AS required_experience, "
+			"    COALESCE(jp.job_description, '') AS job_description, "
+			"    COALESCE(jp.salary_min::text, '') AS salary_min, "
+			"    COALESCE(jp.salary_max::text, '') AS salary_max, "
+			"    CASE "
+			"        WHEN jp.salary_min IS NULL AND jp.salary_max IS NULL THEN '' "
+			"        WHEN jp.salary_min IS NOT NULL AND jp.salary_max IS NOT NULL THEN jp.salary_min::text || ' - ' || jp.salary_max::text "
+			"        ELSE COALESCE(jp.salary_min::text, jp.salary_max::text) "
+			"    END AS salary_range "
+			"FROM job_postings jp "
+			"INNER JOIN users u ON u.id = jp.employer_id "
+			"LEFT JOIN company_profiles cp ON cp.user_id = u.id "
+			"WHERE u.email = $1 AND jp.id = $2 "
+			"LIMIT 1",
+			email,
+			jobId);
+
+		if (result.empty())
+		{
+			return std::nullopt;
+		}
+
+		return mapJobCard(pqxx::row(result[0]));
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "Get employer job details failed: " << e.what() << std::endl;
+		return std::nullopt;
+	}
+}
+
+bool Database::updateEmployerJob(const std::string& email, long long jobId, const S_JobListing& input)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
+	if (!isConnected() || jobId <= 0) return false;
+	if (input.jobTitle.empty() || input.jobDescription.empty()) return false;
+
+	try
+	{
+		pqxx::work tx(*m_connection);
+		const auto result = tx.exec_params(
+			"UPDATE job_postings jp "
+			"SET job_title = $3, "
+			"    job_description = $4, "
+			"    required_education = $5, "
+			"    required_skills = $6, "
+			"    required_experience = $7, "
+			"    work_mode = $8, "
+			"    job_location = $9, "
+			"    salary_min = NULLIF($10, '')::numeric, "
+			"    salary_max = NULLIF($11, '')::numeric, "
+			"    job_type = $12, "
+			"    career_level = $13, "
+			"    application_deadline = NULLIF($14, '')::date, "
+			"    status = $15, "
+			"    updated_at = CURRENT_TIMESTAMP "
+			"FROM users u "
+			"WHERE jp.employer_id = u.id AND u.email = $1 AND u.role = 'employer' AND jp.id = $2",
+			email,
+			jobId,
+			input.jobTitle,
+			input.jobDescription,
+			input.requiredEducation,
+			input.requiredSkills,
+			input.requiredExperience,
+			input.workMode,
+			input.jobLocation,
+			input.salaryMin,
+			input.salaryMax,
+			input.jobType,
+			input.careerLevel,
+			input.applicationDeadline,
+			input.status);
+
+		tx.commit();
+		return result.affected_rows() > 0;
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "Update employer job failed: " << e.what() << std::endl;
+		return false;
+	}
+}
+
 std::optional<S_JobCard> Database::getCandidateJobDetails(long long jobId)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);

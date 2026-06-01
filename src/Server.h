@@ -73,6 +73,8 @@ private:
 	void handleApiEmployerRecommendations(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerMembership(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerJobs(const httplib::Request& req, httplib::Response& res);
+	void handleApiEmployerEditJobGet(const httplib::Request& req, httplib::Response& res);
+	void handleApiEmployerEditJobPost(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerCompanyProfileGet(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerCompanyProfilePost(const httplib::Request& req, httplib::Response& res);
 	void handleApiAdminUsers(const httplib::Request& req, httplib::Response& res);

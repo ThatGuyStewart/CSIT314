@@ -458,6 +458,16 @@ std::vector<S_EmployerCandidateRecommendation> DataService::getEmployerRecommend
 	return recommendations;
 }
 
+std::optional<S_JobCard> DataService::getEmployerJobDetails(const std::string& email, long long jobId)
+{
+	return m_database.getEmployerJobDetails(email, jobId);
+}
+
+bool DataService::updateEmployerJob(const std::string& email, long long jobId, const S_JobListing& input)
+{
+	return m_database.updateEmployerJob(email, jobId, input);
+}
+
 std::vector<S_JobCard> DataService::getEmployerJobs(const std::string& email)
 {
 	return m_database.getEmployerJobs(email);

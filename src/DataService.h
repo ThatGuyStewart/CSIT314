@@ -39,6 +39,8 @@ public:
 	std::vector<S_CandidateCard> getEmployerCandidates(const std::string& keyword, const std::string& skills, const std::string& education, const std::string& yearsExperience, const std::string& preferredWorkMode, const std::string& preferredLocation);
 	std::optional<S_CandidateCard> getEmployerCandidateDetails(const std::string& email, long long candidateId, long long jobId = 0);
 	std::vector<S_EmployerCandidateRecommendation> getEmployerRecommendations(const std::string& email, long long jobId = 0, size_t maxResults = 0);
+	std::optional<S_JobCard> getEmployerJobDetails(const std::string& email, long long jobId);
+	bool updateEmployerJob(const std::string& email, long long jobId, const S_JobListing& input);
 	std::vector<S_JobCard> getEmployerJobs(const std::string& email);
 	S_AdminDashboardData getAdminDashboard();
 	std::vector<S_JobCard> getAdminJobs(const std::string& search, const std::string& status);
