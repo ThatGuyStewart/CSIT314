@@ -1,6 +1,5 @@
 #include "Server.h"
-#include "Account.h"
-#include "JobListing.h"
+#include "AccountRole.h"
 #include <algorithm>
 #include <random>
 #include <chrono>
@@ -83,11 +82,6 @@ bool Server::validateAccount(const std::string& email, const std::string& passwo
 	return m_service.validateAccount(email, password);
 }
 
-std::unique_ptr<Account> Server::createAccountForUser(const std::string& email, const std::string& password)
-{
-	return Account::create(accountRoleFromString(m_service.getAccountRole(email).value_or("")), email, password);
-}
-
 void Server::serveHtmlFile(const std::string& path, httplib::Response& res)
 {
 	const auto body = loadFile(path);
@@ -117,8 +111,7 @@ bool Server::tryRequireAdmin(const httplib::Request& req, httplib::Response& res
 		return false;
 	}
 
-	const auto account = createAccountForUser(user);
-	if (!account || !account->isAdmin())
+	if (m_service.getAccountRole(user).value_or("") != "admin")
 	{
 		res.status = 403;
 		res.set_content("Forbidden", "text/plain");
@@ -227,21 +220,21 @@ void Server::handleApiLogin(const httplib::Request& req, httplib::Response& res)
 				m_sessions.usernameToToken[user] = token;
 			}
 
-			const auto account = createAccountForUser(user, pass);
-			if (!account)
+			const std::string role = m_service.getAccountRole(user).value_or("");
+			const AccountRole accountRole = accountRoleFromString(role);
+			if (accountRole == AccountRole::Unknown)
 			{
 				res.status = 403;
 				res.set_content(R"({"error":"invalid account role"})", "application/json");
 				return;
 			}
-			const std::string role = accountRoleToString(account->getRole());
 
 			std::string redirectTo = "/candidate/dashboard";
-			if (account->isAdmin())
+			if (accountRole == AccountRole::Admin)
 			{
 				redirectTo = "/admin";
 			}
-			else if (account->getRole() == AccountRole::Employer)
+			else if (accountRole == AccountRole::Employer)
 			{
 				redirectTo = "/employer/dashboard";
 			}
@@ -463,10 +456,7 @@ void Server::handleApiCandidateProfile(const httplib::Request& req, httplib::Res
 		input.summary = j.value("summary", "");
 		input.portfolioUrl = j.value("portfolio_url", "");
 
-		CandidateAccount account(user, "");
-		account.getProfile() = CandidateProfile(input);
-
-		if (!m_service.saveCandidateProfile(account.getEmail(), account.getProfile().toStruct()))
+		if (!m_service.saveCandidateProfile(user, input))
 		{
 			res.status = 500;
 			res.set_content(R"({"error":"failed to save profile"})", "application/json");
@@ -673,9 +663,7 @@ void Server::handleApiEmployerCreateJob(const httplib::Request& req, httplib::Re
 		input.applicationDeadline = j.value("application_deadline", "");
 		input.status = j.value("status", "Open");
 
-		JobListing listing(input);
-
-		if (!m_service.createJobPosting(user, listing.toStruct()))
+		if (!m_service.createJobPosting(user, input))
 		{
 			res.status = 500;
 			res.set_content(R"({"error":"failed to create job"})", "application/json");
@@ -1047,10 +1035,7 @@ void Server::handleApiEmployerCompanyProfilePost(const httplib::Request& req, ht
 		if (input.industry.empty()) input.industry = "Technology";
 		if (input.companySize.empty()) input.companySize = "11-50";
 
-		EmployerAccount account(user, "");
-		account.getProfile() = EmployerProfile(input);
-
-		if (!m_service.saveCompanyProfile(account.getEmail(), account.getProfile().toStruct()))
+		if (!m_service.saveCompanyProfile(user, input))
 		{
 			res.status = 500;
 			res.set_content(R"({"error":"failed to save company profile"})", "application/json");
@@ -1136,8 +1121,8 @@ void Server::handleWebsocketMessage(httplib::ws::WebSocket& ws, const std::strin
 					m_sessions.usernameToToken[user] = newToken;
 				}
 
-				const auto account = createAccountForUser(user, pass);
-				if (!account)
+				const std::string role = m_service.getAccountRole(user).value_or("");
+				if (accountRoleFromString(role) == AccountRole::Unknown)
 				{
 					nlohmann::json reply =
 					{
@@ -1161,7 +1146,7 @@ void Server::handleWebsocketMessage(httplib::ws::WebSocket& ws, const std::strin
 					{"status", "ok"},
 					{"token", newToken},
 					{"user", user},
-					{"role", accountRoleToString(account->getRole())}
+					{"role", role}
 				};
 
 				ws.send(reply.dump());
@@ -1248,8 +1233,7 @@ bool Server::tryRequireRole(const httplib::Request& req, httplib::Response& res,
 		return false;
 	}
 
-	const auto account = createAccountForUser(user);
-	if (!account || account->getRole() != accountRoleFromString(requiredRole))
+	if (m_service.getAccountRole(user).value_or("") != requiredRole)
 	{
 		res.status = 403;
 		res.set_content("Forbidden", "text/plain");

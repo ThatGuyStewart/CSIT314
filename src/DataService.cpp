@@ -477,5 +477,4 @@ std::optional<S_CompanyProfile> DataService::getCompanyProfile(const std::string
 
 void DataService::stop()
 {
-
 }

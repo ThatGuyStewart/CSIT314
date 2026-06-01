@@ -12,8 +12,6 @@
 #include <condition_variable>
 #include <memory>
 
-class Account;
-
 // Session management struct.
 struct Sessions
 {
@@ -41,7 +39,6 @@ private:
 	std::string getTokenFromCookie(const httplib::Request& req);
 	std::string getUsernameForToken(const std::string& token);
 	std::string getCookieValue(const httplib::Request& req, const std::string& cookieName);
-	std::unique_ptr<Account> createAccountForUser(const std::string& email, const std::string& password = "");
 
 	bool validateAccount(const std::string& email, const std::string& password);
 	void createRoutes();
