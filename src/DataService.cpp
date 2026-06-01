@@ -83,6 +83,11 @@ std::optional<std::string> DataService::getAccountRole(const std::string& email)
 	return m_database.getAccountRole(email);
 }
 
+bool DataService::updateMembershipStatus(const std::string& email, const std::string& membershipStatus)
+{
+	return m_database.updateMembershipStatus(email, membershipStatus);
+}
+
 bool DataService::saveCandidateProfile(const std::string& email, const S_CandidateProfile& input)
 {
 	return m_database.saveCandidateProfile(email, input);
@@ -100,9 +105,19 @@ bool DataService::createJobPosting(const std::string& email, const S_JobListing&
 
 std::vector<S_UserSummary> DataService::getAdminUsers(const std::string& search, const std::string& role)
 {
-	auto users = m_database.getAdminUsers(search, role);
+	auto users = m_database.getAdminUsers(role);
 
-	if (search.empty() || users.size() < 2)
+	if (search.empty())
+	{
+		return users;
+	}
+
+	users.erase(std::remove_if(users.begin(), users.end(), [&](const S_UserSummary& user)
+		{
+			return ScoringLogic::GetUserSearchScore(user, search) <= 0.0f;
+		}), users.end());
+
+	if (users.size() < 2)
 	{
 		return users;
 	}
@@ -163,6 +178,8 @@ std::optional<S_JobCard> DataService::getCandidateJobDetails(const std::string& 
 		return std::nullopt;
 	}
 
+	job->isApplied = m_database.hasCandidateAppliedToJob(email, jobId);
+
 	const auto candidateProfile = m_database.getCandidateProfile(email);
 	if (!candidateProfile.has_value())
 	{
@@ -177,6 +194,11 @@ std::optional<S_JobCard> DataService::getCandidateJobDetails(const std::string& 
 	return job;
 }
 
+bool DataService::applyToCandidateJob(const std::string& email, long long jobId)
+{
+	return m_database.createCandidateApplication(email, jobId);
+}
+
 std::vector<S_JobCard> DataService::getRecommendedJobs(const std::string& email)
 {
 	auto jobs = m_database.getCandidateJobs();
@@ -188,11 +210,6 @@ std::vector<S_JobCard> DataService::getRecommendedJobs(const std::string& email)
 			{
 				return jobs;
 			}
-
-		if (jobs.size() > 10)
-		{
-			jobs.resize(10);
-		}
 		return jobs;
 	}
 
@@ -217,11 +234,6 @@ std::vector<S_JobCard> DataService::getRecommendedJobs(const std::string& email)
 		{
 			return left.matchScore > right.matchScore;
 		});
-
-	if (jobs.size() > 10)
-	{
-		jobs.resize(10);
-	}
 
 	return jobs;
 }
@@ -271,7 +283,7 @@ std::vector<S_CandidateCard> DataService::getEmployerCandidates(const std::strin
 	return candidates;
 }
 
-std::optional<S_CandidateCard> DataService::getEmployerCandidateDetails(const std::string& email, long long candidateId)
+std::optional<S_CandidateCard> DataService::getEmployerCandidateDetails(const std::string& email, long long candidateId, long long jobId)
 {
 	auto candidate = m_database.getEmployerCandidateDetails(candidateId);
 	if (!candidate.has_value())
@@ -280,10 +292,18 @@ std::optional<S_CandidateCard> DataService::getEmployerCandidateDetails(const st
 	}
 
 	auto jobs = m_database.getEmployerJobs(email);
+	if (jobId > 0)
+	{
+		jobs.erase(std::remove_if(jobs.begin(), jobs.end(), [&](const S_JobCard& job)
+			{
+				return job.id != jobId;
+			}), jobs.end());
+	}
+
 	if (jobs.empty())
 	{
 		candidate->matchScore = 0;
-		candidate->matchReasons = { "Post a job to see how this candidate matches against your openings." };
+		candidate->matchReasons = { jobId > 0 ? "The selected job could not be found for match comparison." : "Post a job to see how this candidate matches against your openings." };
 		candidate->matchedJobId = 0;
 		candidate->matchedJobTitle.clear();
 		return candidate;
@@ -450,9 +470,19 @@ S_AdminDashboardData DataService::getAdminDashboard()
 
 std::vector<S_JobCard> DataService::getAdminJobs(const std::string& search, const std::string& status)
 {
-	auto jobs = m_database.getAdminJobs(search, status);
+	auto jobs = m_database.getAdminJobs(status);
 
-	if (search.empty() || jobs.size() < 2)
+	if (search.empty())
+	{
+		return jobs;
+	}
+
+	jobs.erase(std::remove_if(jobs.begin(), jobs.end(), [&](const S_JobCard& job)
+		{
+			return !ScoringLogic::HasFuzzyKeywordMatch(job, search);
+		}), jobs.end());
+
+	if (jobs.size() < 2)
 	{
 		return jobs;
 	}
@@ -463,6 +493,21 @@ std::vector<S_JobCard> DataService::getAdminJobs(const std::string& search, cons
 		});
 
 	return jobs;
+}
+
+std::optional<S_CandidateCard> DataService::getAdminCandidateDetails(long long candidateId)
+{
+	return m_database.getAdminCandidateDetails(candidateId);
+}
+
+std::optional<S_AdminEmployerDetail> DataService::getAdminEmployerDetails(long long employerId)
+{
+	return m_database.getAdminEmployerDetails(employerId);
+}
+
+std::optional<S_JobCard> DataService::getAdminJobDetails(long long jobId)
+{
+	return m_database.getAdminJobDetails(jobId);
 }
 
 bool DataService::saveCompanyProfile(const std::string& email, const S_CompanyProfile& input)

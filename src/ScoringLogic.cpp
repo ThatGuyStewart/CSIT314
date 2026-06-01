@@ -909,6 +909,7 @@ bool ScoringLogic::HasFuzzyKeywordMatch(const S_JobCard& job, const std::string&
 	for (const auto& query : queries.phraseQueries)
 	{
 		if (containsKeywordTerm(job.title, query)
+			|| containsKeywordTerm(job.company, query)
 			|| containsKeywordTerm(job.requiredSkills, query)
 			|| containsKeywordTerm(job.jobDescription, query))
 		{
@@ -919,6 +920,8 @@ bool ScoringLogic::HasFuzzyKeywordMatch(const S_JobCard& job, const std::string&
 	for (const auto& query : queries.tokenQueries)
 	{
 		if (containsWholeSearchTerm(job.title, query)
+			|| containsWholeSearchTerm(job.company, query)
+			|| containsApproximateWholeSearchTerm(job.company, query)
 			|| containsWholeSearchTerm(job.requiredSkills, query)
 			|| containsWholeSearchTerm(job.jobDescription, query)
 			|| containsWholeSearchTerm(job.title, query)
@@ -933,11 +936,35 @@ bool ScoringLogic::HasFuzzyKeywordMatch(const S_JobCard& job, const std::string&
 
 float ScoringLogic::GetUserSearchScore(const S_UserSummary& user, const std::string& query)
 {
-	return (getFuzzyScore(user.fullName, query) * 3.0f)
-		+ (getFuzzyScore(user.email, query) * 2.0f)
-		+ getFuzzyScore(user.role, query)
-		+ getFuzzyScore(user.profileOrJobs, query)
-		+ getFuzzyScore(user.membershipStatus, query);
+	const std::string normalizedQuery = normalizeSearchText(query);
+	if (normalizedQuery.empty())
+	{
+		return 0.0f;
+	}
+
+	float score = 0.0f;
+
+	if (containsKeywordTerm(user.fullName, normalizedQuery)) score += 140.0f;
+	if (containsKeywordTerm(user.companyName, normalizedQuery)) score += 160.0f;
+	if (containsKeywordTerm(user.email, normalizedQuery)) score += 120.0f;
+
+	if (containsWholeSearchTerm(user.fullName, normalizedQuery)) score += 110.0f;
+	else if (containsApproximateWholeSearchTerm(user.fullName, normalizedQuery)) score += 85.0f;
+
+	if (containsWholeSearchTerm(user.companyName, normalizedQuery)) score += 140.0f;
+	else if (containsApproximateWholeSearchTerm(user.companyName, normalizedQuery)) score += 120.0f;
+
+	if (containsWholeSearchTerm(user.email, normalizedQuery)) score += 90.0f;
+	else if (containsApproximateWholeSearchTerm(user.email, normalizedQuery)) score += 65.0f;
+
+	score += (getFuzzyScore(user.fullName, normalizedQuery) * 3.0f)
+		+ (getFuzzyScore(user.companyName, normalizedQuery) * 3.5f)
+		+ (getFuzzyScore(user.email, normalizedQuery) * 2.0f)
+		+ getFuzzyScore(user.role, normalizedQuery)
+		+ getFuzzyScore(user.profileOrJobs, normalizedQuery)
+		+ getFuzzyScore(user.membershipStatus, normalizedQuery);
+
+	return score;
 }
 
 float ScoringLogic::GetCandidateSearchScore(const S_CandidateCard& candidate, const std::string& keyword, const std::string& skills)

@@ -359,6 +359,15 @@ bool Database::createSchema()
 			"ALTER TABLE job_postings ADD COLUMN IF NOT EXISTS career_level VARCHAR(20) DEFAULT 'Entry-level';"
 			"ALTER TABLE job_postings ADD COLUMN IF NOT EXISTS application_deadline DATE;"
 			"ALTER TABLE job_postings ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'Open';"
+			"CREATE TABLE IF NOT EXISTS candidate_applications ("
+			"    id BIGSERIAL PRIMARY KEY,"
+			"    candidate_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,"
+			"    job_posting_id BIGINT NOT NULL REFERENCES job_postings(id) ON DELETE CASCADE,"
+			"    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+			"    UNIQUE (candidate_id, job_posting_id)"
+			");"
+			"CREATE INDEX IF NOT EXISTS idx_candidate_applications_candidate_id ON candidate_applications(candidate_id);"
+			"CREATE INDEX IF NOT EXISTS idx_candidate_applications_job_posting_id ON candidate_applications(job_posting_id);"
 		);
 		tx.commit();
 
@@ -367,6 +376,61 @@ bool Database::createSchema()
 	catch (const std::exception& e)
 	{
 		std::cerr << "Database schema creation failed: " << e.what() << std::endl;
+		return false;
+	}
+}
+
+bool Database::createCandidateApplication(const std::string& email, long long jobId)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
+	if (!isConnected() || jobId <= 0) return false;
+
+	try
+	{
+		pqxx::work tx(*m_connection);
+		const auto result = tx.exec_params(
+			"INSERT INTO candidate_applications (candidate_id, job_posting_id) "
+			"SELECT u.id, jp.id "
+			"FROM users u "
+			"INNER JOIN job_postings jp ON jp.id = $2 "
+			"WHERE u.email = $1 AND u.role = 'candidate' AND jp.status = 'Open' "
+			"ON CONFLICT (candidate_id, job_posting_id) DO NOTHING "
+			"RETURNING id",
+			email,
+			jobId);
+
+		tx.commit();
+		return !result.empty() || hasCandidateAppliedToJob(email, jobId);
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "Create candidate application failed: " << e.what() << std::endl;
+		return false;
+	}
+}
+
+bool Database::hasCandidateAppliedToJob(const std::string& email, long long jobId)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
+	if (!isConnected() || jobId <= 0) return false;
+
+	try
+	{
+		pqxx::read_transaction tx(*m_connection);
+		const auto result = tx.exec_params(
+			"SELECT 1 "
+			"FROM candidate_applications ca "
+			"INNER JOIN users u ON u.id = ca.candidate_id "
+			"WHERE u.email = $1 AND u.role = 'candidate' AND ca.job_posting_id = $2 "
+			"LIMIT 1",
+			email,
+			jobId);
+
+		return !result.empty();
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "Check candidate application failed: " << e.what() << std::endl;
 		return false;
 	}
 }
@@ -429,6 +493,33 @@ bool Database::createAccount(const std::string& fullName, const std::string& ema
 	catch (const std::exception& e)
 	{
 		std::cout << "Create account failed: " << e.what() << std::endl;
+		return false;
+	}
+}
+
+bool Database::updateMembershipStatus(const std::string& email, const std::string& membershipStatus)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
+	if (!isConnected()) return false;
+
+	if (membershipStatus != "free" && membershipStatus != "premium")
+	{
+		return false;
+	}
+
+	try
+	{
+		pqxx::work tx(*m_connection);
+		const auto result = tx.exec_params(
+			"UPDATE users SET membership_status = $1 WHERE email = $2 AND role IN ('candidate', 'employer')",
+			membershipStatus,
+			email);
+		tx.commit();
+		return result.affected_rows() > 0;
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "Update membership status failed: " << e.what() << std::endl;
 		return false;
 	}
 }
@@ -657,7 +748,7 @@ bool Database::createJobPosting(const std::string& email, const S_JobListing& in
 	}
 }
 
-std::vector<S_UserSummary> Database::getAdminUsers(const std::string& search, const std::string& role)
+std::vector<S_UserSummary> Database::getAdminUsers(const std::string& role)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
 	std::vector<S_UserSummary> users;
@@ -670,6 +761,7 @@ std::vector<S_UserSummary> Database::getAdminUsers(const std::string& search, co
 			"SELECT "
 			"    u.id, "
 			"    u.full_name, "
+			"    COALESCE(cp_company.company_name, '') AS company_name, "
 			"    u.email, "
 			"    u.role, "
 			"    u.membership_status, "
@@ -681,12 +773,11 @@ std::vector<S_UserSummary> Database::getAdminUsers(const std::string& search, co
 			"    TO_CHAR(u.created_at, 'YYYY-MM-DD') AS created_at "
 			"FROM users u "
 			"LEFT JOIN candidate_profiles cp ON cp.user_id = u.id "
+			"LEFT JOIN company_profiles cp_company ON cp_company.user_id = u.id "
 			"LEFT JOIN job_postings jp ON jp.employer_id = u.id "
-			"WHERE ($1 = '' OR u.full_name ILIKE '%' || $1 || '%' OR u.email ILIKE '%' || $1 || '%') "
-			"  AND ($2 = '' OR u.role = $2) "
-			"GROUP BY u.id, u.full_name, u.email, u.role, u.membership_status, cp.user_id, u.created_at "
+			"WHERE ($1 = '' OR u.role = $1) "
+			"GROUP BY u.id, u.full_name, cp_company.company_name, u.email, u.role, u.membership_status, cp.user_id, u.created_at "
 			"ORDER BY u.created_at DESC, u.id DESC",
-			search,
 			role);
 
 		users.reserve(result.size());
@@ -695,6 +786,7 @@ std::vector<S_UserSummary> Database::getAdminUsers(const std::string& search, co
 			S_UserSummary item;
 			item.id = row["id"].as<long long>();
 			item.fullName = row["full_name"].as<std::string>();
+			item.companyName = row["company_name"].as<std::string>();
 			item.email = row["email"].as<std::string>();
 			item.role = row["role"].as<std::string>();
 			item.membershipStatus = row["membership_status"].as<std::string>();
@@ -975,6 +1067,7 @@ std::vector<S_CandidateCard> Database::getEmployerCandidates()
 			"SELECT "
 			"    u.id, "
 			"    u.full_name, "
+			"    COALESCE(cp.contact_info, '') AS contact_info, "
 			"    COALESCE(cp.education, '') AS education, "
 			"    COALESCE(cp.major, '') AS major, "
 			"    COALESCE(cp.years_experience, 0) AS years_experience, "
@@ -982,7 +1075,10 @@ std::vector<S_CandidateCard> Database::getEmployerCandidates()
 			"    COALESCE(cp.skills, '') AS skills, "
 			"    COALESCE(cp.preferred_location, '') AS preferred_location, "
 			"    COALESCE(cp.preferred_work_mode, '') AS preferred_work_mode, "
+			"    COALESCE(cp.expected_salary::text, '') AS expected_salary, "
+			"    COALESCE(cp.employment_type, '') AS employment_type, "
 			"    COALESCE(cp.summary, '') AS summary, "
+			"    COALESCE(cp.portfolio_url, '') AS portfolio_url, "
 			"    COALESCE(TO_CHAR(u.created_at, 'YYYY-MM-DD'), '') AS created_at, "
 			"    COALESCE(cp.years_experience::text || ' years', '0 years') AS experience_text "
 			"FROM users u "
@@ -1018,6 +1114,7 @@ std::vector<S_CandidateCard> Database::getFilteredEmployerCandidates(const std::
 			"SELECT "
 			"    u.id, "
 			"    u.full_name, "
+			"    COALESCE(cp.contact_info, '') AS contact_info, "
 			"    COALESCE(cp.education, '') AS education, "
 			"    COALESCE(cp.major, '') AS major, "
 			"    COALESCE(cp.years_experience, 0) AS years_experience, "
@@ -1025,7 +1122,10 @@ std::vector<S_CandidateCard> Database::getFilteredEmployerCandidates(const std::
 			"    COALESCE(cp.skills, '') AS skills, "
 			"    COALESCE(cp.preferred_location, '') AS preferred_location, "
 			"    COALESCE(cp.preferred_work_mode, '') AS preferred_work_mode, "
+			"    COALESCE(cp.expected_salary::text, '') AS expected_salary, "
+			"    COALESCE(cp.employment_type, '') AS employment_type, "
 			"    COALESCE(cp.summary, '') AS summary, "
+			"    COALESCE(cp.portfolio_url, '') AS portfolio_url, "
 			"    COALESCE(TO_CHAR(u.created_at, 'YYYY-MM-DD'), '') AS created_at, "
 			"    COALESCE(cp.years_experience::text || ' years', '0 years') AS experience_text "
 			"FROM users u "
@@ -1160,7 +1260,7 @@ S_AdminDashboardData Database::getAdminDashboard()
 
 		const auto recentUsersResult = tx.exec(
 			"SELECT "
-			"u.id, u.full_name, u.email, u.role, u.membership_status, "
+			"u.id, u.full_name, COALESCE(cp_company.company_name, '') AS company_name, u.email, u.role, u.membership_status, "
 			"CASE "
 			"    WHEN u.role = 'candidate' THEN CASE WHEN cp.user_id IS NOT NULL THEN 'Profile' ELSE 'No Profile' END "
 			"    WHEN u.role = 'employer' THEN COALESCE(COUNT(jp.id)::text || ' Jobs', '0 Jobs') "
@@ -1169,8 +1269,9 @@ S_AdminDashboardData Database::getAdminDashboard()
 			"TO_CHAR(u.created_at, 'YYYY-MM-DD') AS created_at "
 			"FROM users u "
 			"LEFT JOIN candidate_profiles cp ON cp.user_id = u.id "
+			"LEFT JOIN company_profiles cp_company ON cp_company.user_id = u.id "
 			"LEFT JOIN job_postings jp ON jp.employer_id = u.id "
-			"GROUP BY u.id, u.full_name, u.email, u.role, u.membership_status, cp.user_id, u.created_at "
+			"GROUP BY u.id, u.full_name, cp_company.company_name, u.email, u.role, u.membership_status, cp.user_id, u.created_at "
 			"ORDER BY u.created_at DESC "
 			"LIMIT 5");
 
@@ -1179,6 +1280,7 @@ S_AdminDashboardData Database::getAdminDashboard()
 			S_UserSummary item;
 			item.id = row["id"].as<long long>();
 			item.fullName = row["full_name"].as<std::string>();
+			item.companyName = row["company_name"].as<std::string>();
 			item.email = row["email"].as<std::string>();
 			item.role = row["role"].as<std::string>();
 			item.membershipStatus = row["membership_status"].as<std::string>();
@@ -1216,7 +1318,7 @@ S_AdminDashboardData Database::getAdminDashboard()
 	}
 }
 
-std::vector<S_JobCard> Database::getAdminJobs(const std::string& search, const std::string& status)
+std::vector<S_JobCard> Database::getAdminJobs(const std::string& status)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
 	std::vector<S_JobCard> jobs;
@@ -1237,10 +1339,8 @@ std::vector<S_JobCard> Database::getAdminJobs(const std::string& search, const s
 			"FROM job_postings jp "
 			"INNER JOIN users u ON u.id = jp.employer_id "
 			"LEFT JOIN company_profiles cp ON cp.user_id = u.id "
-			"WHERE ($1 = '' OR jp.job_title ILIKE '%' || $1 || '%' OR COALESCE(cp.company_name, u.full_name) ILIKE '%' || $1 || '%' OR jp.required_skills ILIKE '%' || $1 || '%' OR jp.job_description ILIKE '%' || $1 || '%') "
-			"  AND ($2 = '' OR jp.status = $2) "
+			"WHERE ($1 = '' OR jp.status = $1) "
 			"ORDER BY jp.created_at DESC",
-			search,
 			status);
 
 		for (const auto& row : result)
@@ -1357,6 +1457,127 @@ std::optional<S_CompanyProfile> Database::getCompanyProfile(const std::string& e
 	catch (const std::exception& e)
 	{
 		std::cout << "Get company profile failed: " << e.what() << std::endl;
+		return std::nullopt;
+	}
+}
+
+std::optional<S_JobCard> Database::getAdminJobDetails(long long jobId)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
+	if (!isConnected()) return std::nullopt;
+
+	try
+	{
+		pqxx::read_transaction tx(*m_connection);
+		const auto result = tx.exec_params(
+			"SELECT "
+			"    jp.id, "
+			"    jp.job_title AS title, "
+			"    COALESCE(cp.company_name, u.full_name) AS company, "
+			"    COALESCE(cp.company_description, '') AS company_description, "
+			"    COALESCE(cp.website_url, '') AS company_website_url, "
+			"    jp.job_type AS type, "
+			"    COALESCE(jp.career_level, '') AS career_level, "
+			"    jp.status, "
+			"    COALESCE(TO_CHAR(jp.application_deadline, 'YYYY-MM-DD'), '') AS deadline, "
+			"    TO_CHAR(jp.created_at, 'YYYY-MM-DD') AS posted, "
+			"    COALESCE(jp.job_location, '') AS location, "
+			"    COALESCE(jp.work_mode, '') AS work_mode, "
+			"    COALESCE(jp.required_skills, '') AS required_skills, "
+			"    COALESCE(jp.required_education, '') AS required_education, "
+			"    COALESCE(jp.required_experience, 0) AS required_experience, "
+			"    COALESCE(jp.job_description, '') AS job_description, "
+			"    COALESCE(jp.salary_min::text, '') AS salary_min, "
+			"    COALESCE(jp.salary_max::text, '') AS salary_max, "
+			"    CASE "
+			"        WHEN jp.salary_min IS NULL AND jp.salary_max IS NULL THEN '' "
+			"        WHEN jp.salary_min IS NOT NULL AND jp.salary_max IS NOT NULL THEN jp.salary_min::text || ' - ' || jp.salary_max::text "
+			"        ELSE COALESCE(jp.salary_min::text, jp.salary_max::text) "
+			"    END AS salary_range "
+			"FROM job_postings jp "
+			"INNER JOIN users u ON u.id = jp.employer_id "
+			"LEFT JOIN company_profiles cp ON cp.user_id = u.id "
+			"WHERE jp.id = $1 "
+			"LIMIT 1",
+			jobId);
+
+		if (result.empty())
+		{
+			return std::nullopt;
+		}
+
+		return mapJobCard(pqxx::row(result[0]));
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "Get admin job details failed: " << e.what() << std::endl;
+		return std::nullopt;
+	}
+}
+
+std::optional<S_CandidateCard> Database::getAdminCandidateDetails(long long candidateId)
+{
+	return getEmployerCandidateDetails(candidateId);
+}
+
+std::optional<S_AdminEmployerDetail> Database::getAdminEmployerDetails(long long employerId)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
+	if (!isConnected()) return std::nullopt;
+
+	try
+	{
+		pqxx::read_transaction tx(*m_connection);
+		const auto result = tx.exec_params(
+			"SELECT "
+			"    u.id, "
+			"    u.full_name, "
+			"    u.email, "
+			"    u.membership_status, "
+			"    COALESCE(TO_CHAR(u.created_at, 'YYYY-MM-DD'), '') AS created_at, "
+			"    COALESCE(cp.company_name, '') AS company_name, "
+			"    COALESCE(cp.company_email, '') AS company_email, "
+			"    COALESCE(cp.company_phone, '') AS company_phone, "
+			"    COALESCE(cp.industry, '') AS industry, "
+			"    COALESCE(cp.company_size, '') AS company_size, "
+			"    COALESCE(cp.company_location, '') AS company_location, "
+			"    COALESCE(cp.company_description, '') AS company_description, "
+			"    COALESCE(cp.website_url, '') AS website_url, "
+			"    COUNT(jp.id)::int AS total_jobs "
+			"FROM users u "
+			"LEFT JOIN company_profiles cp ON cp.user_id = u.id "
+			"LEFT JOIN job_postings jp ON jp.employer_id = u.id "
+			"WHERE u.role = 'employer' AND u.id = $1 "
+			"GROUP BY u.id, u.full_name, u.email, u.membership_status, u.created_at, cp.company_name, cp.company_email, cp.company_phone, cp.industry, cp.company_size, cp.company_location, cp.company_description, cp.website_url "
+			"LIMIT 1",
+			employerId);
+
+		if (result.empty())
+		{
+			return std::nullopt;
+		}
+
+		const auto& row = result[0];
+		S_AdminEmployerDetail item;
+		item.id = row["id"].as<long long>();
+		item.fullName = row["full_name"].as<std::string>();
+		item.email = row["email"].as<std::string>();
+		item.membershipStatus = row["membership_status"].as<std::string>();
+		item.createdAt = row["created_at"].as<std::string>();
+		item.companyName = row["company_name"].as<std::string>();
+		item.companyEmail = row["company_email"].as<std::string>();
+		item.companyPhone = row["company_phone"].as<std::string>();
+		item.industry = row["industry"].as<std::string>();
+		item.companySize = row["company_size"].as<std::string>();
+		item.companyLocation = row["company_location"].as<std::string>();
+		item.companyDescription = row["company_description"].as<std::string>();
+		item.websiteUrl = row["website_url"].as<std::string>();
+		item.totalJobs = row["total_jobs"].as<int>();
+		return item;
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "Get admin employer details failed: " << e.what() << std::endl;
 		return std::nullopt;
 	}
 }

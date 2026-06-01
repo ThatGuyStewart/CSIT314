@@ -23,6 +23,7 @@ struct S_JobCard
 	std::string jobDescription;
 	std::string salaryMin;
 	std::string salaryMax;
+	bool isApplied = false;
 	int matchScore = 0;
 	std::vector<std::string> matchReasons;
 };
@@ -119,6 +120,7 @@ struct S_UserSummary
 {
 	long long id = 0;
 	std::string fullName;
+	std::string companyName;
 	std::string email;
 	std::string role;
 	std::string membershipStatus;
@@ -156,4 +158,22 @@ struct S_AdminDashboardData
 	int totalCompanies = 0;
 	std::vector<S_UserSummary> recentUsers;
 	std::vector<S_JobCard> recentJobs;
+};
+
+struct S_AdminEmployerDetail
+{
+	long long id = 0;
+	std::string fullName;
+	std::string email;
+	std::string membershipStatus;
+	std::string createdAt;
+	std::string companyName;
+	std::string companyEmail;
+	std::string companyPhone;
+	std::string industry;
+	std::string companySize;
+	std::string companyLocation;
+	std::string companyDescription;
+	std::string websiteUrl;
+	int totalJobs = 0;
 };

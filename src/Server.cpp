@@ -136,12 +136,15 @@ void Server::createRoutes()
 	Get("/api/candidate/dashboard", [&](const httplib::Request& req, httplib::Response& res) { handleApiCandidateDashboard(req, res); });
 	Get("/api/candidate/jobs", [&](const httplib::Request& req, httplib::Response& res) { handleApiCandidateJobs(req, res); });
 	Get("/api/candidate/job", [&](const httplib::Request& req, httplib::Response& res) { handleApiCandidateJobDetails(req, res); });
+	Post("/api/candidate/apply", [&](const httplib::Request& req, httplib::Response& res) { handleApiCandidateApply(req, res); });
 	Get("/api/candidate/recommended-jobs", [&](const httplib::Request& req, httplib::Response& res) { handleApiCandidateRecommendedJobs(req, res); });
+	Post("/api/candidate/membership", [&](const httplib::Request& req, httplib::Response& res) { handleApiCandidateMembership(req, res); });
 	Post("/api/employer/jobs", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerCreateJob(req, res); });
 	Get("/api/employer/dashboard", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerDashboard(req, res); });
 	Get("/api/employer/candidates", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerCandidates(req, res); });
 	Get("/api/employer/candidate", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerCandidateDetails(req, res); });
 	Get("/api/employer/recommendations", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerRecommendations(req, res); });
+	Post("/api/employer/membership", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerMembership(req, res); });
 	Get("/api/employer/company-profile", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerCompanyProfileGet(req, res); });
 	Get("/api/employer/company_profile", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerCompanyProfileGet(req, res); });
 	Post("/api/employer/company-profile", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerCompanyProfilePost(req, res); });
@@ -150,6 +153,9 @@ void Server::createRoutes()
 	Get("/api/admin/users", [&](const httplib::Request& req, httplib::Response& res) { handleApiAdminUsers(req, res); });
 	Get("/api/admin/dashboard", [&](const httplib::Request& req, httplib::Response& res) { handleApiAdminDashboard(req, res); });
 	Get("/api/admin/jobs", [&](const httplib::Request& req, httplib::Response& res) { handleApiAdminJobs(req, res); });
+	Get("/api/admin/candidate", [&](const httplib::Request& req, httplib::Response& res) { handleApiAdminCandidateDetails(req, res); });
+	Get("/api/admin/employer", [&](const httplib::Request& req, httplib::Response& res) { handleApiAdminEmployerDetails(req, res); });
+	Get("/api/admin/job", [&](const httplib::Request& req, httplib::Response& res) { handleApiAdminJobDetails(req, res); });
 	Get("/logout", [&](const httplib::Request& req, httplib::Response& res) { handleLogout(req, res); });
 
 	createProtectedPageRoute("/candidate/dashboard", "candidate", "HTML/candidate/dashboard.html");
@@ -177,6 +183,9 @@ void Server::createRoutes()
 	createProtectedPageRoute("/admin/dashboard", "admin", "HTML/admin/dashboard.html");
 	createProtectedPageRoute("/admin/users", "admin", "HTML/admin/users.html");
 	createProtectedPageRoute("/admin/jobs", "admin", "HTML/admin/jobs.html");
+	createProtectedPageRoute("/admin/candidate", "admin", "HTML/admin/candidate_details.html");
+	createProtectedPageRoute("/admin/employer", "admin", "HTML/admin/employer_details.html");
+	createProtectedPageRoute("/admin/job", "admin", "HTML/admin/job_details.html");
 
 	createWebsocketRoute();
 }
@@ -315,6 +324,31 @@ void Server::handleApiEmployerRecommendations(const httplib::Request& req, httpl
 	}
 
 	res.set_content(nlohmann::json({ {"status", "ok"}, {"recommendations", recommendations} }).dump(), "application/json");
+}
+
+void Server::handleApiEmployerMembership(const httplib::Request& req, httplib::Response& res)
+{
+	std::string user;
+	if (!tryRequireRole(req, res, "employer", user)) return;
+
+	try
+	{
+		const auto body = nlohmann::json::parse(req.body);
+		const std::string membershipStatus = body.value("membership_status", "");
+		if (!m_service.updateMembershipStatus(user, membershipStatus))
+		{
+			res.status = 400;
+			res.set_content(R"({"error":"failed to update membership status"})", "application/json");
+			return;
+		}
+
+		res.set_content(nlohmann::json({ {"status", "ok"}, {"membershipStatus", membershipStatus} }).dump(), "application/json");
+	}
+	catch (const nlohmann::json::parse_error&)
+	{
+		res.status = 400;
+		res.set_content(R"({"error":"invalid json"})", "application/json");
+	}
 }
 
 void Server::handleApiCandidateProfileGet(const httplib::Request& req, httplib::Response& res)
@@ -522,6 +556,7 @@ void Server::handleApiCandidateJobs(const httplib::Request& req, httplib::Respon
 	const std::string salaryMax = req.has_param("salary_max") ? req.get_param_value("salary_max") : "";
 
 	const auto jobsData = m_service.getCandidateJobs(keyword, location, workMode, jobType, careerLevel, salaryMin, salaryMax);
+	const auto dashboardData = m_service.getCandidateDashboard(user);
 
 	nlohmann::json jobs = nlohmann::json::array();
 	for (const auto& item : jobsData)
@@ -542,7 +577,32 @@ void Server::handleApiCandidateJobs(const httplib::Request& req, httplib::Respon
 			});
 	}
 
-	res.set_content(nlohmann::json({ {"status", "ok"}, {"jobs", jobs} }).dump(), "application/json");
+	res.set_content(nlohmann::json({ {"status", "ok"}, {"membershipStatus", dashboardData.membershipStatus}, {"jobs", jobs} }).dump(), "application/json");
+}
+
+void Server::handleApiCandidateMembership(const httplib::Request& req, httplib::Response& res)
+{
+	std::string user;
+	if (!tryRequireRole(req, res, "candidate", user)) return;
+
+	try
+	{
+		const auto body = nlohmann::json::parse(req.body);
+		const std::string membershipStatus = body.value("membership_status", "");
+		if (!m_service.updateMembershipStatus(user, membershipStatus))
+		{
+			res.status = 400;
+			res.set_content(R"({"error":"failed to update membership status"})", "application/json");
+			return;
+		}
+
+		res.set_content(nlohmann::json({ {"status", "ok"}, {"membershipStatus", membershipStatus} }).dump(), "application/json");
+	}
+	catch (const nlohmann::json::parse_error&)
+	{
+		res.status = 400;
+		res.set_content(R"({"error":"invalid json"})", "application/json");
+	}
 }
 
 void Server::handleApiCandidateJobDetails(const httplib::Request& req, httplib::Response& res)
@@ -586,6 +646,7 @@ void Server::handleApiCandidateJobDetails(const httplib::Request& req, httplib::
 			{"requiredEducation", job->requiredEducation},
 			{"requiredExperience", job->requiredExperience},
 			{"jobDescription", job->jobDescription},
+			{"isApplied", job->isApplied},
 			{"matchScore", job->matchScore},
 			{"matchReasons", job->matchReasons}
 		};
@@ -596,6 +657,38 @@ void Server::handleApiCandidateJobDetails(const httplib::Request& req, httplib::
 	{
 		res.status = 400;
 		res.set_content(R"({"error":"invalid job id"})", "application/json");
+	}
+}
+
+void Server::handleApiCandidateApply(const httplib::Request& req, httplib::Response& res)
+{
+	std::string user;
+	if (!tryRequireRole(req, res, "candidate", user)) return;
+
+	try
+	{
+		const auto body = nlohmann::json::parse(req.body);
+		const long long jobId = body.value("jobId", 0LL);
+		if (jobId <= 0)
+		{
+			res.status = 400;
+			res.set_content(R"({"error":"missing job id"})", "application/json");
+			return;
+		}
+
+		if (!m_service.applyToCandidateJob(user, jobId))
+		{
+			res.status = 400;
+			res.set_content(R"({"error":"failed to apply for job"})", "application/json");
+			return;
+		}
+
+		res.set_content(R"({"status":"ok","isApplied":true})", "application/json");
+	}
+	catch (const nlohmann::json::parse_error&)
+	{
+		res.status = 400;
+		res.set_content(R"({"error":"invalid json"})", "application/json");
 	}
 }
 
@@ -630,7 +723,7 @@ void Server::handleApiCandidateRecommendedJobs(const httplib::Request& req, http
 			});
 	}
 
-	res.set_content(nlohmann::json({ {"status", "ok"}, {"jobs", jobs} }).dump(), "application/json");
+	res.set_content(nlohmann::json({ {"status", "ok"}, {"membershipStatus", dashboardData.membershipStatus}, {"jobs", jobs} }).dump(), "application/json");
 }
 
 void Server::handleApiEmployerCreateJob(const httplib::Request& req, httplib::Response& res)
@@ -760,7 +853,13 @@ void Server::handleApiEmployerCandidateDetails(const httplib::Request& req, http
 	try
 	{
 		const long long candidateId = std::stoll(req.get_param_value("id"));
-		const auto candidate = m_service.getEmployerCandidateDetails(user, candidateId);
+		long long jobId = 0;
+		if (req.has_param("job_id"))
+		{
+			jobId = std::stoll(req.get_param_value("job_id"));
+		}
+
+		const auto candidate = m_service.getEmployerCandidateDetails(user, candidateId, jobId);
 		if (!candidate.has_value())
 		{
 			res.status = 404;
@@ -941,6 +1040,155 @@ void Server::handleApiAdminJobs(const httplib::Request& req, httplib::Response& 
 	}
 
 	res.set_content(nlohmann::json({ {"status", "ok"}, {"jobs", jobs} }).dump(), "application/json");
+}
+
+void Server::handleApiAdminCandidateDetails(const httplib::Request& req, httplib::Response& res)
+{
+	std::string user;
+	if (!tryRequireAdmin(req, res, user)) return;
+	if (!req.has_param("id"))
+	{
+		res.status = 400;
+		res.set_content(R"({"error":"missing candidate id"})", "application/json");
+		return;
+	}
+
+	try
+	{
+		const long long candidateId = std::stoll(req.get_param_value("id"));
+		const auto candidate = m_service.getAdminCandidateDetails(candidateId);
+		if (!candidate.has_value())
+		{
+			res.status = 404;
+			res.set_content(R"({"error":"candidate not found"})", "application/json");
+			return;
+		}
+
+		nlohmann::json payload = {
+			{"id", candidate->id},
+			{"fullName", candidate->fullName},
+			{"contactInfo", candidate->contactInfo},
+			{"education", candidate->education},
+			{"major", candidate->major},
+			{"yearsExperience", candidate->yearsExperience},
+			{"workExperience", candidate->workExperience},
+			{"skills", candidate->skills},
+			{"preferredLocation", candidate->preferredLocation},
+			{"preferredWorkMode", candidate->preferredWorkMode},
+			{"expectedSalary", candidate->expectedSalary},
+			{"employmentType", candidate->employmentType},
+			{"summary", candidate->summary},
+			{"portfolioUrl", candidate->portfolioUrl},
+			{"createdAt", candidate->createdAt},
+			{"experienceText", candidate->experienceText}
+		};
+
+		res.set_content(nlohmann::json({ {"status", "ok"}, {"candidate", payload} }).dump(), "application/json");
+	}
+	catch (const std::exception&)
+	{
+		res.status = 400;
+		res.set_content(R"({"error":"invalid candidate id"})", "application/json");
+	}
+}
+
+void Server::handleApiAdminEmployerDetails(const httplib::Request& req, httplib::Response& res)
+{
+	std::string user;
+	if (!tryRequireAdmin(req, res, user)) return;
+	if (!req.has_param("id"))
+	{
+		res.status = 400;
+		res.set_content(R"({"error":"missing employer id"})", "application/json");
+		return;
+	}
+
+	try
+	{
+		const long long employerId = std::stoll(req.get_param_value("id"));
+		const auto employer = m_service.getAdminEmployerDetails(employerId);
+		if (!employer.has_value())
+		{
+			res.status = 404;
+			res.set_content(R"({"error":"employer not found"})", "application/json");
+			return;
+		}
+
+		nlohmann::json payload = {
+			{"id", employer->id},
+			{"fullName", employer->fullName},
+			{"email", employer->email},
+			{"membershipStatus", employer->membershipStatus},
+			{"createdAt", employer->createdAt},
+			{"companyName", employer->companyName},
+			{"companyEmail", employer->companyEmail},
+			{"companyPhone", employer->companyPhone},
+			{"industry", employer->industry},
+			{"companySize", employer->companySize},
+			{"companyLocation", employer->companyLocation},
+			{"companyDescription", employer->companyDescription},
+			{"websiteUrl", employer->websiteUrl},
+			{"totalJobs", employer->totalJobs}
+		};
+
+		res.set_content(nlohmann::json({ {"status", "ok"}, {"employer", payload} }).dump(), "application/json");
+	}
+	catch (const std::exception&)
+	{
+		res.status = 400;
+		res.set_content(R"({"error":"invalid employer id"})", "application/json");
+	}
+}
+
+void Server::handleApiAdminJobDetails(const httplib::Request& req, httplib::Response& res)
+{
+	std::string user;
+	if (!tryRequireAdmin(req, res, user)) return;
+	if (!req.has_param("id"))
+	{
+		res.status = 400;
+		res.set_content(R"({"error":"missing job id"})", "application/json");
+		return;
+	}
+
+	try
+	{
+		const long long jobId = std::stoll(req.get_param_value("id"));
+		const auto job = m_service.getAdminJobDetails(jobId);
+		if (!job.has_value())
+		{
+			res.status = 404;
+			res.set_content(R"({"error":"job not found"})", "application/json");
+			return;
+		}
+
+		nlohmann::json payload = {
+			{"id", job->id},
+			{"title", job->title},
+			{"company", job->company},
+			{"companyDescription", job->companyDescription},
+			{"companyWebsiteUrl", job->companyWebsiteUrl},
+			{"type", job->type},
+			{"careerLevel", job->careerLevel},
+			{"status", job->status},
+			{"deadline", job->deadline},
+			{"posted", job->posted},
+			{"location", job->location},
+			{"workMode", job->workMode},
+			{"salaryRange", job->salaryRange},
+			{"requiredSkills", job->requiredSkills},
+			{"requiredEducation", job->requiredEducation},
+			{"requiredExperience", job->requiredExperience},
+			{"jobDescription", job->jobDescription}
+		};
+
+		res.set_content(nlohmann::json({ {"status", "ok"}, {"job", payload} }).dump(), "application/json");
+	}
+	catch (const std::exception&)
+	{
+		res.status = 400;
+		res.set_content(R"({"error":"invalid job id"})", "application/json");
+	}
 }
 
 void Server::handleLogout(const httplib::Request& req, httplib::Response& res)

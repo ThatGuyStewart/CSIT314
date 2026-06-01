@@ -63,18 +63,24 @@ private:
 	void handleApiCandidateDashboard(const httplib::Request& req, httplib::Response& res);
 	void handleApiCandidateJobs(const httplib::Request& req, httplib::Response& res);
 	void handleApiCandidateJobDetails(const httplib::Request& req, httplib::Response& res);
+	void handleApiCandidateApply(const httplib::Request& req, httplib::Response& res);
 	void handleApiCandidateRecommendedJobs(const httplib::Request& req, httplib::Response& res);
+	void handleApiCandidateMembership(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerCreateJob(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerDashboard(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerCandidates(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerCandidateDetails(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerRecommendations(const httplib::Request& req, httplib::Response& res);
+	void handleApiEmployerMembership(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerJobs(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerCompanyProfileGet(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerCompanyProfilePost(const httplib::Request& req, httplib::Response& res);
 	void handleApiAdminUsers(const httplib::Request& req, httplib::Response& res);
 	void handleApiAdminDashboard(const httplib::Request& req, httplib::Response& res);
 	void handleApiAdminJobs(const httplib::Request& req, httplib::Response& res);
+	void handleApiAdminCandidateDetails(const httplib::Request& req, httplib::Response& res);
+	void handleApiAdminEmployerDetails(const httplib::Request& req, httplib::Response& res);
+	void handleApiAdminJobDetails(const httplib::Request& req, httplib::Response& res);
 
 	void createWebsocketRoute();
 	void startWebsocketBroadcaster();
