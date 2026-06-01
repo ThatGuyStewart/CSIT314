@@ -1,6 +1,5 @@
 #pragma once
 #define CPPHTTPLIB_OPENSSL_SUPPORT
-#include "ThreadControl.h"
 #include "DataService.h"
 #include <string>
 #include <httplib.h>
@@ -28,10 +27,18 @@ struct Sessions
 class Server : public httplib::SSLServer
 {
 private:
+	struct BroadcasterThreadState
+	{
+		std::atomic<bool> running{ false };
+		std::thread thread;
+		std::mutex mutex;
+		std::condition_variable_any cv;
+	};
+
 	DataService& m_service;
 	const std::string m_address;
 	const int m_port;
-	ThreadControl m_broadcasterThread;
+	BroadcasterThreadState m_broadcasterThread;
 	Sessions m_sessions;
 
 	std::string loadFile(const std::string& path);

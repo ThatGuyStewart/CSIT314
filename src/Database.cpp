@@ -778,7 +778,59 @@ S_CandidateDashboardData Database::getCandidateDashboard(const std::string& emai
 	}
 }
 
-std::vector<S_JobCard> Database::getCandidateJobs(const std::string& keyword, const std::string& location, const std::string& workMode, const std::string& jobType, const std::string& careerLevel, const std::string& salaryMin, const std::string& salaryMax)
+std::vector<S_JobCard> Database::getCandidateJobs()
+{
+	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
+	std::vector<S_JobCard> jobs;
+	if (!isConnected()) return jobs;
+
+	try
+	{
+		pqxx::read_transaction tx(*m_connection);
+		const auto result = tx.exec(
+			"SELECT "
+			"    jp.id, "
+			"    jp.job_title AS title, "
+			"    COALESCE(cp.company_name, u.full_name) AS company, "
+			"    jp.job_type AS type, "
+			"    jp.status, "
+			"    COALESCE(TO_CHAR(jp.application_deadline, 'YYYY-MM-DD'), '') AS deadline, "
+			"    TO_CHAR(jp.created_at, 'YYYY-MM-DD') AS posted, "
+			"    COALESCE(jp.job_location, '') AS location, "
+			"    COALESCE(jp.work_mode, '') AS work_mode, "
+			"    COALESCE(jp.required_skills, '') AS required_skills, "
+			"    COALESCE(jp.required_education, '') AS required_education, "
+			"    COALESCE(jp.required_experience, 0) AS required_experience, "
+			"    COALESCE(jp.job_description, '') AS job_description, "
+			"    COALESCE(jp.salary_min::text, '') AS salary_min, "
+			"    COALESCE(jp.salary_max::text, '') AS salary_max, "
+			"    CASE "
+			"        WHEN jp.salary_min IS NULL AND jp.salary_max IS NULL THEN '' "
+			"        WHEN jp.salary_min IS NOT NULL AND jp.salary_max IS NOT NULL THEN jp.salary_min::text || ' - ' || jp.salary_max::text "
+			"        ELSE COALESCE(jp.salary_min::text, jp.salary_max::text) "
+			"    END AS salary_range "
+			"FROM job_postings jp "
+			"INNER JOIN users u ON u.id = jp.employer_id "
+			"LEFT JOIN company_profiles cp ON cp.user_id = u.id "
+			"WHERE jp.status = 'Open' "
+			"ORDER BY jp.created_at DESC");
+
+		jobs.reserve(result.size());
+		for (const auto& row : result)
+		{
+			jobs.push_back(mapJobCard(pqxx::row(row)));
+		}
+
+		return jobs;
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "Get candidate jobs failed: " << e.what() << std::endl;
+		return {};
+	}
+}
+
+std::vector<S_JobCard> Database::getFilteredCandidateJobs(const std::string& location, const std::string& workMode, const std::string& jobType, const std::string& careerLevel, const std::string& salaryMin, const std::string& salaryMax)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
 	std::vector<S_JobCard> jobs;
@@ -813,15 +865,13 @@ std::vector<S_JobCard> Database::getCandidateJobs(const std::string& keyword, co
 			"INNER JOIN users u ON u.id = jp.employer_id "
 			"LEFT JOIN company_profiles cp ON cp.user_id = u.id "
 			"WHERE jp.status = 'Open' "
-			"  AND ($1 = '' OR jp.job_title ILIKE '%' || $1 || '%' OR jp.required_skills ILIKE '%' || $1 || '%' OR jp.job_description ILIKE '%' || $1 || '%') "
-			"  AND ($2 = '' OR jp.job_location ILIKE '%' || $2 || '%') "
-			"  AND ($3 = '' OR jp.work_mode = $3) "
-			"  AND ($4 = '' OR jp.job_type = $4) "
-			"  AND ($5 = '' OR jp.career_level = $5) "
-			"  AND ($6 = '' OR COALESCE(jp.salary_max, jp.salary_min) >= NULLIF($6, '')::numeric) "
-			"  AND ($7 = '' OR COALESCE(jp.salary_min, jp.salary_max) <= NULLIF($7, '')::numeric) "
+			"  AND ($1 = '' OR jp.job_location ILIKE '%' || $1 || '%') "
+			"  AND ($2 = '' OR jp.work_mode = $2) "
+			"  AND ($3 = '' OR jp.job_type = $3) "
+			"  AND ($4 = '' OR jp.career_level = $4) "
+			"  AND ($5 = '' OR COALESCE(jp.salary_max, jp.salary_min) >= NULLIF($5, '')::numeric) "
+			"  AND ($6 = '' OR COALESCE(jp.salary_min, jp.salary_max) <= NULLIF($6, '')::numeric) "
 			"ORDER BY jp.created_at DESC",
-			keyword,
 			location,
 			workMode,
 			jobType,
@@ -839,7 +889,7 @@ std::vector<S_JobCard> Database::getCandidateJobs(const std::string& keyword, co
 	}
 	catch (const std::exception& e)
 	{
-		std::cout << "Get candidate jobs failed: " << e.what() << std::endl;
+		std::cout << "Get filtered candidate jobs failed: " << e.what() << std::endl;
 		return {};
 	}
 }
@@ -912,7 +962,50 @@ S_EmployerDashboardData Database::getEmployerDashboard(const std::string& email)
 	}
 }
 
-std::vector<S_CandidateCard> Database::getEmployerCandidates(const std::string& keyword, const std::string& skills, const std::string& education, const std::string& yearsExperience, const std::string& preferredWorkMode, const std::string& preferredLocation)
+std::vector<S_CandidateCard> Database::getEmployerCandidates()
+{
+	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
+	std::vector<S_CandidateCard> candidates;
+	if (!isConnected()) return candidates;
+
+	try
+	{
+		pqxx::read_transaction tx(*m_connection);
+		const auto result = tx.exec(
+			"SELECT "
+			"    u.id, "
+			"    u.full_name, "
+			"    COALESCE(cp.education, '') AS education, "
+			"    COALESCE(cp.major, '') AS major, "
+			"    COALESCE(cp.years_experience, 0) AS years_experience, "
+			"    COALESCE(cp.work_experience, '') AS work_experience, "
+			"    COALESCE(cp.skills, '') AS skills, "
+			"    COALESCE(cp.preferred_location, '') AS preferred_location, "
+			"    COALESCE(cp.preferred_work_mode, '') AS preferred_work_mode, "
+			"    COALESCE(cp.summary, '') AS summary, "
+			"    COALESCE(TO_CHAR(u.created_at, 'YYYY-MM-DD'), '') AS created_at, "
+			"    COALESCE(cp.years_experience::text || ' years', '0 years') AS experience_text "
+			"FROM users u "
+			"INNER JOIN candidate_profiles cp ON cp.user_id = u.id "
+			"WHERE u.role = 'candidate' "
+			"ORDER BY cp.years_experience DESC, u.created_at DESC");
+
+		candidates.reserve(result.size());
+		for (const auto& row : result)
+		{
+			candidates.push_back(mapCandidateCard(pqxx::row(row)));
+		}
+
+		return candidates;
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "Get employer candidates failed: " << e.what() << std::endl;
+		return {};
+	}
+}
+
+std::vector<S_CandidateCard> Database::getFilteredEmployerCandidates(const std::string& education, const std::string& yearsExperience, const std::string& preferredWorkMode, const std::string& preferredLocation)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
 	std::vector<S_CandidateCard> candidates;
@@ -938,15 +1031,11 @@ std::vector<S_CandidateCard> Database::getEmployerCandidates(const std::string& 
 			"FROM users u "
 			"INNER JOIN candidate_profiles cp ON cp.user_id = u.id "
 			"WHERE u.role = 'candidate' "
-			"  AND ($1 = '' OR u.full_name ILIKE '%' || $1 || '%' OR cp.major ILIKE '%' || $1 || '%' OR cp.skills ILIKE '%' || $1 || '%' OR cp.summary ILIKE '%' || $1 || '%') "
-			"  AND ($2 = '' OR cp.skills ILIKE '%' || $2 || '%') "
-			"  AND ($3 = '' OR cp.education ILIKE '%' || $3 || '%') "
-			"  AND ($4 = '' OR cp.years_experience >= NULLIF($4, '')::int) "
-			"  AND ($5 = '' OR cp.preferred_work_mode = $5) "
-			"  AND ($6 = '' OR cp.preferred_location ILIKE '%' || $6 || '%') "
+			"  AND ($1 = '' OR cp.education ILIKE '%' || $1 || '%') "
+			"  AND ($2 = '' OR cp.years_experience >= NULLIF($2, '')::int) "
+			"  AND ($3 = '' OR cp.preferred_work_mode = $3) "
+			"  AND ($4 = '' OR cp.preferred_location ILIKE '%' || $4 || '%') "
 			"ORDER BY cp.years_experience DESC, u.created_at DESC",
-			keyword,
-			skills,
 			education,
 			yearsExperience,
 			preferredWorkMode,
@@ -962,7 +1051,7 @@ std::vector<S_CandidateCard> Database::getEmployerCandidates(const std::string& 
 	}
 	catch (const std::exception& e)
 	{
-		std::cout << "Get employer candidates failed: " << e.what() << std::endl;
+		std::cout << "Get filtered employer candidates failed: " << e.what() << std::endl;
 		return {};
 	}
 }

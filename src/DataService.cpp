@@ -130,7 +130,7 @@ S_CandidateDashboardData DataService::getCandidateDashboard(const std::string& e
 
 std::vector<S_JobCard> DataService::getCandidateJobs(const std::string& keyword, const std::string& location, const std::string& workMode, const std::string& jobType, const std::string& careerLevel, const std::string& salaryMin, const std::string& salaryMax)
 {
-	auto jobs = m_database.getCandidateJobs("", location, workMode, jobType, careerLevel, salaryMin, salaryMax);
+	auto jobs = m_database.getFilteredCandidateJobs(location, workMode, jobType, careerLevel, salaryMin, salaryMax);
 
 	if (keyword.empty())
 	{
@@ -179,7 +179,7 @@ std::optional<S_JobCard> DataService::getCandidateJobDetails(const std::string& 
 
 std::vector<S_JobCard> DataService::getRecommendedJobs(const std::string& email)
 {
-	auto jobs = m_database.getCandidateJobs("", "", "", "", "", "", "");
+	auto jobs = m_database.getCandidateJobs();
 
 	const auto candidateProfile = m_database.getCandidateProfile(email);
 	if (!candidateProfile.has_value())
@@ -248,7 +248,7 @@ S_EmployerDashboardData DataService::getEmployerDashboard(const std::string& ema
 
 std::vector<S_CandidateCard> DataService::getEmployerCandidates(const std::string& keyword, const std::string& skills, const std::string& education, const std::string& yearsExperience, const std::string& preferredWorkMode, const std::string& preferredLocation)
 {
-	auto candidates = m_database.getEmployerCandidates("", "", education, yearsExperience, preferredWorkMode, preferredLocation);
+	auto candidates = m_database.getFilteredEmployerCandidates(education, yearsExperience, preferredWorkMode, preferredLocation);
 
 	if (!keyword.empty() || !skills.empty())
 	{
@@ -335,7 +335,7 @@ std::vector<S_EmployerCandidateRecommendation> DataService::getEmployerRecommend
 		return {};
 	}
 
-	auto candidates = m_database.getEmployerCandidates("", "", "", "", "", "");
+	auto candidates = m_database.getEmployerCandidates();
 	std::vector<S_EmployerCandidateRecommendation> recommendations;
 	recommendations.reserve(candidates.size() * jobs.size());
 	const bool includeReasons = jobId > 0;

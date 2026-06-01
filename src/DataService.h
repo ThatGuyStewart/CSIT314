@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Database.h"
-#include "ThreadControl.h"
 #include <chrono>
 #include <memory>
 #include <mutex>
@@ -14,7 +13,6 @@ class DataService
 {
 private:
 	Database& m_database;
-	ThreadControl m_updater;
 
 public:
 	explicit DataService(Database& database);

@@ -35,10 +35,12 @@ public:
 	bool createJobPosting(const std::string& email, const S_JobListing& input);
 	std::vector<S_UserSummary> getAdminUsers(const std::string& search, const std::string& role);
 	S_CandidateDashboardData getCandidateDashboard(const std::string& email);
-	std::vector<S_JobCard> getCandidateJobs(const std::string& keyword, const std::string& location, const std::string& workMode, const std::string& jobType, const std::string& careerLevel, const std::string& salaryMin, const std::string& salaryMax);
+	std::vector<S_JobCard> getCandidateJobs();
+	std::vector<S_JobCard> getFilteredCandidateJobs(const std::string& location, const std::string& workMode, const std::string& jobType, const std::string& careerLevel, const std::string& salaryMin, const std::string& salaryMax);
 	std::optional<S_JobCard> getCandidateJobDetails(long long jobId);
 	S_EmployerDashboardData getEmployerDashboard(const std::string& email);
-	std::vector<S_CandidateCard> getEmployerCandidates(const std::string& keyword, const std::string& skills, const std::string& education, const std::string& yearsExperience, const std::string& preferredWorkMode, const std::string& preferredLocation);
+	std::vector<S_CandidateCard> getEmployerCandidates();
+	std::vector<S_CandidateCard> getFilteredEmployerCandidates(const std::string& education, const std::string& yearsExperience, const std::string& preferredWorkMode, const std::string& preferredLocation);
 	std::optional<S_CandidateCard> getEmployerCandidateDetails(long long candidateId);
 	std::vector<S_JobCard> getEmployerJobs(const std::string& email);
 	S_AdminDashboardData getAdminDashboard();
