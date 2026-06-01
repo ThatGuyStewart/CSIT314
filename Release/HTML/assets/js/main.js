@@ -115,6 +115,16 @@
     return `/employer/candidate?id=${encodeURIComponent(id)}`;
   }
 
+  function employerCandidateDetailsForJobUrl(candidateId, jobId) {
+    const params = new URLSearchParams();
+    params.set('id', candidateId);
+    if (jobId) {
+      params.set('job_id', jobId);
+    }
+
+    return `/employer/candidate?${params.toString()}`;
+  }
+
   function getAdminUserDetailsUrl(user) {
     if (!user || !user.id) return '';
     if (user.role === 'candidate') return adminCandidateDetailsUrl(user.id);
@@ -135,6 +145,62 @@
     const initializer = initializersByPath[pathname.toLowerCase()];
     if (typeof initializer === 'function') {
       initializer();
+    }
+  }
+
+  async function loadEmployerApplicants() {
+    const groupsContainer = document.querySelector('#applicants-groups');
+    if (!groupsContainer) return;
+
+    const totalJobsCount = document.querySelector('#jobs-with-applicants-count');
+
+    try {
+      const response = await fetch('/api/employer/applicants', { credentials: 'same-origin' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        groupsContainer.innerHTML = '<div class="card">Unable to load applicants.</div>';
+        return;
+      }
+
+      const jobs = data.jobs || [];
+      if (totalJobsCount) {
+        totalJobsCount.textContent = String(jobs.length);
+      }
+
+      groupsContainer.innerHTML = jobs.length
+        ? jobs.map(job => {
+            const applicantsMarkup = Array.isArray(job.applicants) && job.applicants.length
+              ? job.applicants.map(applicant => `
+                  <a class="card" href="${employerCandidateDetailsForJobUrl(applicant.id, job.jobId)}" style="display:block; text-decoration:none; color:inherit;">
+                    <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap;">
+                      <div>
+                        <div class="card-title">${escapeHtml(applicant.fullName || 'Candidate')}</div>
+                        <div style="color:var(--text-muted); margin-bottom:8px;">${escapeHtml(applicant.major || 'Field not listed')}</div>
+                      </div>
+                      <span class="badge">Applicant</span>
+                    </div>
+                    <div style="font-size:0.9rem; margin-bottom:8px;">${escapeHtml(applicant.skills || 'No skills listed')}</div>
+                    <div style="font-size:0.85rem; color:var(--text-muted);">${escapeHtml(applicant.preferredLocation || 'Location not listed')} • ${escapeHtml(applicant.preferredWorkMode || 'Mode not listed')} • ${escapeHtml(applicant.experienceText || 'Experience not listed')}</div>
+                  </a>
+                `).join('')
+              : '<div class="card">No applicants yet for this job.</div>';
+
+            return `
+              <section class="card">
+                <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; margin-bottom:16px;">
+                  <div>
+                    <div class="card-title">${escapeHtml(job.jobTitle || 'Untitled job')}</div>
+                    <div style="color:var(--text-muted); margin-top:6px;">${escapeHtml(job.location || 'Location not listed')} • ${escapeHtml(job.workMode || 'Mode not listed')} • ${escapeHtml(job.status || 'Unknown')}</div>
+                  </div>
+                  <span class="badge">${escapeHtml(String(job.applicantCount || 0))} applicants</span>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:12px;">${applicantsMarkup}</div>
+              </section>
+            `;
+          }).join('')
+        : '<div class="card">No job postings found yet.</div>';
+    } catch {
+      groupsContainer.innerHTML = '<div class="card">Unable to load applicants.</div>';
     }
   }
 
@@ -401,6 +467,22 @@
           `;
   }
 
+  function renderCandidateApplicationCard(job) {
+    return `
+      <a class="card recommended-job-card" href="${jobDetailsUrl(job.id)}" style="display:block; text-decoration:none; color:inherit;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:16px;">
+          <div>
+            <div class="card-title">${escapeHtml(job.title || 'Untitled job')}</div>
+            <div style="color:var(--text-muted); margin-bottom:8px;">${escapeHtml(job.company || 'Company not listed')}</div>
+            <div style="font-size:0.9rem; color:var(--text-muted);">${escapeHtml(job.location || 'Location not listed')} • ${escapeHtml(job.workMode || 'Mode not listed')} • ${escapeHtml(job.type || 'Type not listed')}</div>
+          </div>
+          <span class="badge">Applied</span>
+        </div>
+        <div style="margin-bottom:12px; font-weight:600; color:var(--navy-primary);">${escapeHtml(job.salaryRange || 'Salary not listed')}</div>
+      </a>
+    `;
+  }
+
   function renderCandidateBrowseJobCard(job) {
     return `
             <a class="card recommended-job-card" href="${jobDetailsUrl(job.id)}" style="display:block; text-decoration:none; color:inherit;">
@@ -460,6 +542,33 @@
         : '<div class="card">No recommended jobs available right now.</div>';
     } catch {
       grid.innerHTML = '<div class="card">Unable to load recommended jobs.</div>';
+    }
+  }
+
+  async function loadCandidateApplications() {
+    const grid = document.querySelector('#applications-grid');
+    if (!grid) return;
+
+    const shownCount = document.querySelector('#applications-shown-count');
+    const totalCount = document.querySelector('#applications-total-count');
+
+    try {
+      const response = await fetch('/api/candidate/applications', { credentials: 'same-origin' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        grid.innerHTML = '<div class="card">Unable to load applications.</div>';
+        return;
+      }
+
+      const jobs = data.jobs || [];
+      if (shownCount) shownCount.textContent = String(jobs.length);
+      if (totalCount) totalCount.textContent = String(jobs.length);
+
+      grid.innerHTML = jobs.length
+        ? jobs.map(renderCandidateApplicationCard).join('')
+        : '<div class="card">You have not applied to any jobs yet.</div>';
+    } catch {
+      grid.innerHTML = '<div class="card">Unable to load applications.</div>';
     }
   }
 
@@ -908,12 +1017,18 @@
       const applyForm = document.querySelector('#candidate-apply-form');
       const applyButton = document.querySelector('#candidate-apply-button');
       const applySuccess = document.querySelector('#apply-success');
+      const applySuccessText = applySuccess ? applySuccess.querySelector('span + span') : null;
       const setAppliedState = isApplied => {
         if (!applyButton) return;
-        applyButton.textContent = isApplied ? '✅ Applied' : '🚀 Apply Now';
-        applyButton.disabled = isApplied;
+        applyButton.textContent = isApplied ? '🗑 Remove Application' : '🚀 Apply Now';
+        applyButton.className = isApplied ? 'btn btn-secondary btn-lg' : 'btn btn-primary btn-lg';
         if (applySuccess) {
           applySuccess.hidden = !isApplied;
+        }
+        if (applySuccessText) {
+          applySuccessText.textContent = isApplied
+            ? ' You have applied for this job.'
+            : ' Your application has been submitted!';
         }
       };
 
@@ -924,6 +1039,8 @@
         applyForm.addEventListener('submit', async event => {
           event.preventDefault();
 
+          const shouldRemove = applyButton.textContent.includes('Remove');
+
           try {
             const response = await fetch('/api/candidate/apply', {
               method: 'POST',
@@ -931,7 +1048,7 @@
                 'Content-Type': 'application/json'
               },
               credentials: 'same-origin',
-              body: JSON.stringify({ jobId: Number(jobId) })
+              body: JSON.stringify({ jobId: Number(jobId), removeApplication: shouldRemove })
             });
 
             const data = await response.json().catch(() => ({}));
@@ -939,7 +1056,22 @@
               return;
             }
 
-            setAppliedState(Boolean(data.isApplied));
+            const isApplied = Boolean(data.isApplied);
+            setAppliedState(isApplied);
+
+            if (applySuccessText) {
+              applySuccessText.textContent = isApplied
+                ? ' You have applied for this job.'
+                : ' Your application has been removed.';
+            } else if (applySuccess) {
+              applySuccess.textContent = isApplied
+                ? 'You have applied for this job.'
+                : 'Your application has been removed.';
+            }
+
+            if (applySuccess) {
+              applySuccess.hidden = !isApplied;
+            }
           } catch {
           }
         });
@@ -1654,6 +1786,7 @@
             setText('#premiumUsers', data.premiumUsers);
             setText('#totalJobs', data.totalJobs);
             setText('#openJobs', data.openJobs);
+            setText('#totalApplications', data.totalApplications);
             setText('#totalProfiles', data.totalProfiles);
             setText('#totalCompanies', data.totalCompanies);
 
@@ -1788,7 +1921,7 @@
             const response = await fetch(`/api/admin/jobs?${params.toString()}`, { credentials: 'same-origin' });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                adminJobsBody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--error); padding:40px;">Failed to load jobs.</td></tr>';
+                adminJobsBody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--error); padding:40px;">Failed to load jobs.</td></tr>';
                 return;
             }
 
@@ -1804,14 +1937,15 @@
               <td>${escapeHtml(job.company)}</td>
               <td>${escapeHtml(job.type)}</td>
               <td>${escapeHtml(job.status)}</td>
+              <td>${escapeHtml(String(job.applicationCount ?? 0))}</td>
               <td>${escapeHtml(job.deadline)}</td>
               <td>${escapeHtml(job.posted)}</td>
               <td><a href="${adminJobDetailsUrl(job.id)}" class="btn btn-secondary btn-sm">View</a></td>
             </tr>
           `).join('')
-                : '<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:40px;">No jobs found.</td></tr>';
+                : '<tr><td colspan="9" style="text-align:center; color:var(--text-muted); padding:40px;">No jobs found.</td></tr>';
         } catch {
-            adminJobsBody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--error); padding:40px;">Unable to reach the server.</td></tr>';
+            adminJobsBody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--error); padding:40px;">Unable to reach the server.</td></tr>';
         }
     }
 
@@ -1964,6 +2098,7 @@
             setText('#admin-company-description', job.companyDescription, 'No company description available.');
             setText('#admin-required-education', job.requiredEducation, 'Not specified');
             setText('#admin-required-experience', job.requiredExperience ? `${job.requiredExperience} years` : 'Not specified');
+            setText('#admin-application-count', `${Number(job.applicationCount || 0)} applications`, '0 applications');
             setText('#admin-detail-job-type', job.type, 'Not specified');
             setText('#admin-detail-career-level', job.careerLevel, 'Not specified');
             setText('#admin-application-deadline', job.deadline, 'Not specified');
@@ -1990,6 +2125,7 @@
     runPageInitializer(window.location.pathname, {
         '/candidate/dashboard': typeof loadCandidateDashboard === 'function' ? loadCandidateDashboard : null,
         '/candidate/jobs': typeof loadCandidateJobs === 'function' ? loadCandidateJobs : null,
+        '/candidate/applications': typeof loadCandidateApplications === 'function' ? loadCandidateApplications : null,
         '/candidate/membership': typeof loadCandidateMembershipPage === 'function' ? loadCandidateMembershipPage : null,
         '/candidate/job': typeof loadCandidateJobDetails === 'function' ? loadCandidateJobDetails : null,
         '/candidate/recommended-jobs': typeof loadRecommendedJobsPage === 'function' ? loadRecommendedJobsPage : null,
@@ -1998,6 +2134,9 @@
         '/employer/membership': typeof loadEmployerMembershipPage === 'function' ? loadEmployerMembershipPage : null,
         '/employer/recommended-candidates': typeof loadEmployerRecommendedCandidatesPage === 'function' ? loadEmployerRecommendedCandidatesPage : null,
         '/employer/recommended_candidates': typeof loadEmployerRecommendedCandidatesPage === 'function' ? loadEmployerRecommendedCandidatesPage : null,
+        '/employer/applicants': typeof loadEmployerApplicants === 'function' ? loadEmployerApplicants : null,
+        '/employer/view-applicants': typeof loadEmployerApplicants === 'function' ? loadEmployerApplicants : null,
+        '/employer/view_applicants': typeof loadEmployerApplicants === 'function' ? loadEmployerApplicants : null,
         '/employer/candidate': typeof loadEmployerCandidateDetails === 'function' ? loadEmployerCandidateDetails : null,
         '/employer/candidate-details': typeof loadEmployerCandidateDetails === 'function' ? loadEmployerCandidateDetails : null,
         '/employer/candidate_details': typeof loadEmployerCandidateDetails === 'function' ? loadEmployerCandidateDetails : null,

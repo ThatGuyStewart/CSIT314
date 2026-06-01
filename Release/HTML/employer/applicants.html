@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>View Applicants – TalentMatch</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">✦ TalentMatch</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="nav-links">
+      <a href="/employer/dashboard" class="nav-link">Dashboard</a>
+      <a href="/employer/company-profile" class="nav-link">Company Profile</a>
+      <a href="/employer/manage-jobs" class="nav-link">Manage Jobs</a>
+      <a href="/employer/applicants" class="nav-link active">View Applicants</a>
+      <a href="/employer/candidates" class="nav-link">Browse Candidates</a>
+      <a href="/employer/membership" class="nav-link">Membership</a>
+      <a href="/logout" class="nav-link nav-danger">Logout</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div class="page-header">
+      <div>
+        <h1>📥 View Applicants</h1>
+        <p style="color:var(--text-muted); margin-top:4px;">See which candidates have applied to each of your job postings.</p>
+      </div>
+    </div>
+
+    <div class="results-info">
+      <strong id="jobs-with-applicants-count">0</strong> job postings tracked
+    </div>
+
+    <div id="applicants-groups" style="display:flex; flex-direction:column; gap:20px;"></div>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>
