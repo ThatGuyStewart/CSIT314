@@ -194,9 +194,19 @@ std::optional<S_JobCard> DataService::getCandidateJobDetails(const std::string& 
 	return job;
 }
 
+std::vector<S_JobCard> DataService::getCandidateApplications(const std::string& email)
+{
+	return m_database.getCandidateApplications(email);
+}
+
 bool DataService::applyToCandidateJob(const std::string& email, long long jobId)
 {
 	return m_database.createCandidateApplication(email, jobId);
+}
+
+bool DataService::removeCandidateApplication(const std::string& email, long long jobId)
+{
+	return m_database.removeCandidateApplication(email, jobId);
 }
 
 std::vector<S_JobCard> DataService::getRecommendedJobs(const std::string& email)
@@ -456,6 +466,11 @@ std::vector<S_EmployerCandidateRecommendation> DataService::getEmployerRecommend
 	}
 
 	return recommendations;
+}
+
+std::vector<S_EmployerJobApplicants> DataService::getEmployerApplicants(const std::string& email)
+{
+	return m_database.getEmployerApplicants(email);
 }
 
 std::optional<S_JobCard> DataService::getEmployerJobDetails(const std::string& email, long long jobId)

@@ -136,6 +136,7 @@ void Server::createRoutes()
 	Get("/api/candidate/dashboard", [&](const httplib::Request& req, httplib::Response& res) { handleApiCandidateDashboard(req, res); });
 	Get("/api/candidate/jobs", [&](const httplib::Request& req, httplib::Response& res) { handleApiCandidateJobs(req, res); });
 	Get("/api/candidate/job", [&](const httplib::Request& req, httplib::Response& res) { handleApiCandidateJobDetails(req, res); });
+	Get("/api/candidate/applications", [&](const httplib::Request& req, httplib::Response& res) { handleApiCandidateApplications(req, res); });
 	Post("/api/candidate/apply", [&](const httplib::Request& req, httplib::Response& res) { handleApiCandidateApply(req, res); });
 	Get("/api/candidate/recommended-jobs", [&](const httplib::Request& req, httplib::Response& res) { handleApiCandidateRecommendedJobs(req, res); });
 	Post("/api/candidate/membership", [&](const httplib::Request& req, httplib::Response& res) { handleApiCandidateMembership(req, res); });
@@ -143,6 +144,7 @@ void Server::createRoutes()
 	Get("/api/employer/dashboard", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerDashboard(req, res); });
 	Get("/api/employer/candidates", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerCandidates(req, res); });
 	Get("/api/employer/candidate", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerCandidateDetails(req, res); });
+	Get("/api/employer/applicants", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerApplicants(req, res); });
 	Get("/api/employer/recommendations", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerRecommendations(req, res); });
 	Post("/api/employer/membership", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerMembership(req, res); });
 	Get("/api/employer/company-profile", [&](const httplib::Request& req, httplib::Response& res) { handleApiEmployerCompanyProfileGet(req, res); });
@@ -163,6 +165,7 @@ void Server::createRoutes()
 	createProtectedPageRoute("/candidate/dashboard", "candidate", "HTML/candidate/dashboard.html");
 	createProtectedPageRoute("/candidate/profile", "candidate", "HTML/candidate/profile.html");
 	createProtectedPageRoute("/candidate/jobs", "candidate", "HTML/candidate/jobs.html");
+	createProtectedPageRoute("/candidate/applications", "candidate", "HTML/candidate/applications.html");
 	createProtectedPageRoute("/candidate/job", "candidate", "HTML/candidate/job_details.html");
 	createProtectedPageRoute("/candidate/recommended-jobs", "candidate", "HTML/candidate/recommended_jobs.html");
 	createProtectedPageRoute("/candidate/membership", "candidate", "HTML/candidate/membership.html");
@@ -172,6 +175,7 @@ void Server::createRoutes()
 	createProtectedPageRoute("/employer/create-job", "employer", "HTML/employer/create_job.html");
 	createProtectedPageRoute("/employer/manage-jobs", "employer", "HTML/employer/manage_jobs.html");
 	createProtectedPageRoute("/employer/edit-job", "employer", "HTML/employer/edit_job.html");
+	createProtectedPageRoute("/employer/applicants", "employer", "HTML/employer/applicants.html");
 	createProtectedPageRoute("/employer/candidates", "employer", "HTML/employer/candidates.html");
 	createProtectedPageRoute("/employer/candidate", "employer", "HTML/employer/candidate_details.html");
 	createProtectedPageRoute("/employer/candidate-details", "employer", "HTML/employer/candidate_details.html");
@@ -179,6 +183,8 @@ void Server::createRoutes()
 	createProtectedPageRoute("/employer/membership", "employer", "HTML/employer/membership.html");
 	createProtectedPageRoute("/employer/company_profile", "employer", "HTML/employer/company_profile.html");
 	createProtectedPageRoute("/employer/edit_job", "employer", "HTML/employer/edit_job.html");
+	createProtectedPageRoute("/employer/view-applicants", "employer", "HTML/employer/applicants.html");
+	createProtectedPageRoute("/employer/view_applicants", "employer", "HTML/employer/applicants.html");
 	createProtectedPageRoute("/employer/manage_jobs", "employer", "HTML/employer/manage_jobs.html");
 	createProtectedPageRoute("/employer/browse_candidates", "employer", "HTML/employer/candidates.html");
 	createProtectedPageRoute("/employer/browse-candidates", "employer", "HTML/employer/candidates.html");
@@ -666,6 +672,34 @@ void Server::handleApiCandidateJobDetails(const httplib::Request& req, httplib::
 	}
 }
 
+void Server::handleApiCandidateApplications(const httplib::Request& req, httplib::Response& res)
+{
+	std::string user;
+	if (!tryRequireRole(req, res, "candidate", user)) return;
+
+	const auto jobsData = m_service.getCandidateApplications(user);
+
+	nlohmann::json jobs = nlohmann::json::array();
+	for (const auto& item : jobsData)
+	{
+		jobs.push_back({
+			{"id", item.id},
+			{"title", item.title},
+			{"company", item.company},
+			{"type", item.type},
+			{"status", item.status},
+			{"deadline", item.deadline},
+			{"posted", item.posted},
+			{"location", item.location},
+			{"workMode", item.workMode},
+			{"salaryRange", item.salaryRange},
+			{"isApplied", item.isApplied}
+		});
+	}
+
+	res.set_content(nlohmann::json({ {"status", "ok"}, {"jobs", jobs} }).dump(), "application/json");
+}
+
 void Server::handleApiCandidateApply(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -675,6 +709,7 @@ void Server::handleApiCandidateApply(const httplib::Request& req, httplib::Respo
 	{
 		const auto body = nlohmann::json::parse(req.body);
 		const long long jobId = body.value("jobId", 0LL);
+		const bool removeApplication = body.value("removeApplication", false);
 		if (jobId <= 0)
 		{
 			res.status = 400;
@@ -682,14 +717,22 @@ void Server::handleApiCandidateApply(const httplib::Request& req, httplib::Respo
 			return;
 		}
 
-		if (!m_service.applyToCandidateJob(user, jobId))
+		const bool ok = removeApplication
+			? m_service.removeCandidateApplication(user, jobId)
+			: m_service.applyToCandidateJob(user, jobId);
+
+		if (!ok)
 		{
 			res.status = 400;
-			res.set_content(R"({"error":"failed to apply for job"})", "application/json");
+			res.set_content(removeApplication
+				? R"({"error":"failed to remove application"})"
+				: R"({"error":"failed to apply for job"})", "application/json");
 			return;
 		}
 
-		res.set_content(R"({"status":"ok","isApplied":true})", "application/json");
+		res.set_content((removeApplication
+			? R"({"status":"ok","isApplied":false})"
+			: R"({"status":"ok","isApplied":true})"), "application/json");
 	}
 	catch (const nlohmann::json::parse_error&)
 	{
@@ -905,6 +948,45 @@ void Server::handleApiEmployerCandidateDetails(const httplib::Request& req, http
 	}
 }
 
+void Server::handleApiEmployerApplicants(const httplib::Request& req, httplib::Response& res)
+{
+	std::string user;
+	if (!tryRequireRole(req, res, "employer", user)) return;
+
+	const auto jobsData = m_service.getEmployerApplicants(user);
+
+	nlohmann::json jobs = nlohmann::json::array();
+	for (const auto& job : jobsData)
+	{
+		nlohmann::json applicants = nlohmann::json::array();
+		for (const auto& applicant : job.applicants)
+		{
+			applicants.push_back({
+				{"id", applicant.id},
+				{"fullName", applicant.fullName},
+				{"major", applicant.major},
+				{"skills", applicant.skills},
+				{"preferredLocation", applicant.preferredLocation},
+				{"preferredWorkMode", applicant.preferredWorkMode},
+				{"experienceText", applicant.experienceText},
+				{"summary", applicant.summary}
+			});
+		}
+
+		jobs.push_back({
+			{"jobId", job.jobId},
+			{"jobTitle", job.jobTitle},
+			{"status", job.status},
+			{"location", job.location},
+			{"workMode", job.workMode},
+			{"applicantCount", job.applicantCount},
+			{"applicants", applicants}
+		});
+	}
+
+	res.set_content(nlohmann::json({ {"status", "ok"}, {"jobs", jobs} }).dump(), "application/json");
+}
+
 void Server::handleApiEmployerJobs(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -1114,6 +1196,7 @@ void Server::handleApiAdminDashboard(const httplib::Request& req, httplib::Respo
 		{"premiumUsers", data.premiumUsers},
 		{"totalJobs", data.totalJobs},
 		{"openJobs", data.openJobs},
+		{"totalApplications", data.totalApplications},
 		{"totalProfiles", data.totalProfiles},
 		{"totalCompanies", data.totalCompanies},
 		{"recentUsers", recentUsers},
@@ -1143,7 +1226,8 @@ void Server::handleApiAdminJobs(const httplib::Request& req, httplib::Response& 
 			{"type", item.type},
 			{"status", item.status},
 			{"deadline", item.deadline},
-			{"posted", item.posted}
+			{"posted", item.posted},
+			{"applicationCount", item.applicationCount}
 			});
 	}
 
@@ -1287,7 +1371,8 @@ void Server::handleApiAdminJobDetails(const httplib::Request& req, httplib::Resp
 			{"requiredSkills", job->requiredSkills},
 			{"requiredEducation", job->requiredEducation},
 			{"requiredExperience", job->requiredExperience},
-			{"jobDescription", job->jobDescription}
+			{"jobDescription", job->jobDescription},
+			{"applicationCount", job->applicationCount}
 		};
 
 		res.set_content(nlohmann::json({ {"status", "ok"}, {"job", payload} }).dump(), "application/json");

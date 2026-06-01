@@ -39,12 +39,15 @@ public:
 	std::vector<S_JobCard> getCandidateJobs();
 	std::vector<S_JobCard> getFilteredCandidateJobs(const std::string& location, const std::string& workMode, const std::string& jobType, const std::string& careerLevel, const std::string& salaryMin, const std::string& salaryMax);
 	std::optional<S_JobCard> getCandidateJobDetails(long long jobId);
+	std::vector<S_JobCard> getCandidateApplications(const std::string& email);
 	bool createCandidateApplication(const std::string& email, long long jobId);
+	bool removeCandidateApplication(const std::string& email, long long jobId);
 	bool hasCandidateAppliedToJob(const std::string& email, long long jobId);
 	S_EmployerDashboardData getEmployerDashboard(const std::string& email);
 	std::vector<S_CandidateCard> getEmployerCandidates();
 	std::vector<S_CandidateCard> getFilteredEmployerCandidates(const std::string& education, const std::string& yearsExperience, const std::string& preferredWorkMode, const std::string& preferredLocation);
 	std::optional<S_CandidateCard> getEmployerCandidateDetails(long long candidateId);
+	std::vector<S_EmployerJobApplicants> getEmployerApplicants(const std::string& email);
 	std::optional<S_JobCard> getEmployerJobDetails(const std::string& email, long long jobId);
 	bool updateEmployerJob(const std::string& email, long long jobId, const S_JobListing& input);
 	std::vector<S_JobCard> getEmployerJobs(const std::string& email);

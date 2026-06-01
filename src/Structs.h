@@ -23,6 +23,7 @@ struct S_JobCard
 	std::string jobDescription;
 	std::string salaryMin;
 	std::string salaryMax;
+	int applicationCount = 0;
 	bool isApplied = false;
 	int matchScore = 0;
 	std::vector<std::string> matchReasons;
@@ -146,6 +147,17 @@ struct S_EmployerDashboardData
 	std::vector<S_CandidateCard> topCandidates;
 };
 
+struct S_EmployerJobApplicants
+{
+	long long jobId = 0;
+	std::string jobTitle;
+	std::string status;
+	std::string location;
+	std::string workMode;
+	int applicantCount = 0;
+	std::vector<S_CandidateCard> applicants;
+};
+
 struct S_AdminDashboardData
 {
 	int totalUsers = 0;
@@ -154,6 +166,7 @@ struct S_AdminDashboardData
 	int premiumUsers = 0;
 	int totalJobs = 0;
 	int openJobs = 0;
+	int totalApplications = 0;
 	int totalProfiles = 0;
 	int totalCompanies = 0;
 	std::vector<S_UserSummary> recentUsers;

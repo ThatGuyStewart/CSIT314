@@ -77,6 +77,94 @@ namespace
 	}
 }
 
+std::vector<S_EmployerJobApplicants> Database::getEmployerApplicants(const std::string& email)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
+	std::vector<S_EmployerJobApplicants> jobs;
+	if (!isConnected()) return jobs;
+
+	try
+	{
+		pqxx::read_transaction tx(*m_connection);
+		const auto jobsResult = tx.exec_params(
+			"SELECT "
+			"    jp.id, "
+			"    jp.job_title AS title, "
+			"    jp.status, "
+			"    COALESCE(jp.job_location, '') AS location, "
+			"    COALESCE(jp.work_mode, '') AS work_mode "
+			"FROM job_postings jp "
+			"INNER JOIN users u ON u.id = jp.employer_id "
+			"WHERE u.email = $1 AND u.role = 'employer' "
+			"ORDER BY jp.created_at DESC",
+			email);
+
+		jobs.reserve(jobsResult.size());
+		for (const auto& row : jobsResult)
+		{
+			S_EmployerJobApplicants job;
+			job.jobId = row["id"].as<long long>();
+			job.jobTitle = row["title"].as<std::string>();
+			job.status = row["status"].as<std::string>();
+			job.location = row["location"].as<std::string>();
+			job.workMode = row["work_mode"].as<std::string>();
+			jobs.push_back(std::move(job));
+		}
+
+		const auto applicantsResult = tx.exec_params(
+			"SELECT "
+			"    jp.id AS job_id, "
+			"    u.id, "
+			"    u.full_name, "
+			"    COALESCE(cp.contact_info, '') AS contact_info, "
+			"    COALESCE(cp.education, '') AS education, "
+			"    COALESCE(cp.major, '') AS major, "
+			"    COALESCE(cp.years_experience, 0) AS years_experience, "
+			"    COALESCE(cp.work_experience, '') AS work_experience, "
+			"    COALESCE(cp.skills, '') AS skills, "
+			"    COALESCE(cp.preferred_location, '') AS preferred_location, "
+			"    COALESCE(cp.preferred_work_mode, '') AS preferred_work_mode, "
+			"    COALESCE(cp.expected_salary::text, '') AS expected_salary, "
+			"    COALESCE(cp.employment_type, '') AS employment_type, "
+			"    COALESCE(cp.summary, '') AS summary, "
+			"    COALESCE(cp.portfolio_url, '') AS portfolio_url, "
+			"    COALESCE(TO_CHAR(u.created_at, 'YYYY-MM-DD'), '') AS created_at, "
+			"    COALESCE(cp.years_experience::text || ' years', '0 years') AS experience_text "
+			"FROM candidate_applications ca "
+			"INNER JOIN job_postings jp ON jp.id = ca.job_posting_id "
+			"INNER JOIN users employer ON employer.id = jp.employer_id "
+			"INNER JOIN users u ON u.id = ca.candidate_id "
+			"LEFT JOIN candidate_profiles cp ON cp.user_id = u.id "
+			"WHERE employer.email = $1 AND employer.role = 'employer' "
+			"ORDER BY jp.created_at DESC, ca.created_at DESC",
+			email);
+
+		for (const auto& row : applicantsResult)
+		{
+			const long long jobId = row["job_id"].as<long long>();
+			auto it = std::find_if(jobs.begin(), jobs.end(), [&](const S_EmployerJobApplicants& item)
+				{
+					return item.jobId == jobId;
+				});
+
+			if (it == jobs.end())
+			{
+				continue;
+			}
+
+			it->applicants.push_back(mapCandidateCard(pqxx::row(row)));
+			it->applicantCount = static_cast<int>(it->applicants.size());
+		}
+
+		return jobs;
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "Get employer applicants failed: " << e.what() << std::endl;
+		return {};
+	}
+}
+
 std::optional<S_JobCard> Database::getEmployerJobDetails(const std::string& email, long long jobId)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -488,6 +576,63 @@ bool Database::createSchema()
 	}
 }
 
+std::vector<S_JobCard> Database::getCandidateApplications(const std::string& email)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
+	std::vector<S_JobCard> jobs;
+	if (!isConnected()) return jobs;
+
+	try
+	{
+		pqxx::read_transaction tx(*m_connection);
+		const auto result = tx.exec_params(
+			"SELECT "
+			"    jp.id, "
+			"    jp.job_title AS title, "
+			"    COALESCE(cp.company_name, u.full_name) AS company, "
+			"    jp.job_type AS type, "
+			"    jp.status, "
+			"    COALESCE(TO_CHAR(jp.application_deadline, 'YYYY-MM-DD'), '') AS deadline, "
+			"    TO_CHAR(jp.created_at, 'YYYY-MM-DD') AS posted, "
+			"    COALESCE(jp.job_location, '') AS location, "
+			"    COALESCE(jp.work_mode, '') AS work_mode, "
+			"    COALESCE(jp.required_skills, '') AS required_skills, "
+			"    COALESCE(jp.required_education, '') AS required_education, "
+			"    COALESCE(jp.required_experience, 0) AS required_experience, "
+			"    COALESCE(jp.job_description, '') AS job_description, "
+			"    COALESCE(jp.salary_min::text, '') AS salary_min, "
+			"    COALESCE(jp.salary_max::text, '') AS salary_max, "
+			"    CASE "
+			"        WHEN jp.salary_min IS NULL AND jp.salary_max IS NULL THEN '' "
+			"        WHEN jp.salary_min IS NOT NULL AND jp.salary_max IS NOT NULL THEN jp.salary_min::text || ' - ' || jp.salary_max::text "
+			"        ELSE COALESCE(jp.salary_min::text, jp.salary_max::text) "
+			"    END AS salary_range "
+			"FROM candidate_applications ca "
+			"INNER JOIN users candidate_user ON candidate_user.id = ca.candidate_id "
+			"INNER JOIN job_postings jp ON jp.id = ca.job_posting_id "
+			"INNER JOIN users u ON u.id = jp.employer_id "
+			"LEFT JOIN company_profiles cp ON cp.user_id = u.id "
+			"WHERE candidate_user.email = $1 AND candidate_user.role = 'candidate' "
+			"ORDER BY ca.created_at DESC",
+			email);
+
+		jobs.reserve(result.size());
+		for (const auto& row : result)
+		{
+			auto job = mapJobCard(pqxx::row(row));
+			job.isApplied = true;
+			jobs.push_back(std::move(job));
+		}
+
+		return jobs;
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "Get candidate applications failed: " << e.what() << std::endl;
+		return {};
+	}
+}
+
 bool Database::createCandidateApplication(const std::string& email, long long jobId)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -513,6 +658,31 @@ bool Database::createCandidateApplication(const std::string& email, long long jo
 	catch (const std::exception& e)
 	{
 		std::cout << "Create candidate application failed: " << e.what() << std::endl;
+		return false;
+	}
+}
+
+bool Database::removeCandidateApplication(const std::string& email, long long jobId)
+{
+	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
+	if (!isConnected() || jobId <= 0) return false;
+
+	try
+	{
+		pqxx::work tx(*m_connection);
+		const auto result = tx.exec_params(
+			"DELETE FROM candidate_applications ca "
+			"USING users u "
+			"WHERE ca.candidate_id = u.id AND u.email = $1 AND u.role = 'candidate' AND ca.job_posting_id = $2",
+			email,
+			jobId);
+
+		tx.commit();
+		return result.affected_rows() > 0 || !hasCandidateAppliedToJob(email, jobId);
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << "Remove candidate application failed: " << e.what() << std::endl;
 		return false;
 	}
 }
@@ -1405,16 +1575,26 @@ S_AdminDashboardData Database::getAdminDashboard()
 			"    jp.job_type AS type, "
 			"    jp.status, "
 			"    COALESCE(TO_CHAR(jp.application_deadline, 'YYYY-MM-DD'), '') AS deadline, "
-			"    TO_CHAR(jp.created_at, 'YYYY-MM-DD') AS posted "
+			"    TO_CHAR(jp.created_at, 'YYYY-MM-DD') AS posted, "
+			"    COUNT(ca.id)::int AS application_count "
 			"FROM job_postings jp "
 			"INNER JOIN users u ON u.id = jp.employer_id "
 			"LEFT JOIN company_profiles cp ON cp.user_id = u.id "
+			"LEFT JOIN candidate_applications ca ON ca.job_posting_id = jp.id "
+			"GROUP BY jp.id, jp.job_title, cp.company_name, u.full_name, jp.job_type, jp.status, jp.application_deadline, jp.created_at "
 			"ORDER BY jp.created_at DESC "
 			"LIMIT 5");
 
 		for (const auto& row : recentJobsResult)
 		{
 			data.recentJobs.push_back(mapJobCard(pqxx::row(row)));
+		}
+
+		const auto applicationsCount = tx.exec(
+			"SELECT COUNT(*)::int AS total_applications FROM candidate_applications");
+		if (!applicationsCount.empty())
+		{
+			data.totalApplications = applicationsCount[0]["total_applications"].as<int>();
 		}
 
 		return data;
@@ -1443,11 +1623,14 @@ std::vector<S_JobCard> Database::getAdminJobs(const std::string& status)
 			"    jp.job_type AS type, "
 			"    jp.status, "
 			"    COALESCE(TO_CHAR(jp.application_deadline, 'YYYY-MM-DD'), '') AS deadline, "
-			"    TO_CHAR(jp.created_at, 'YYYY-MM-DD') AS posted "
+			"    TO_CHAR(jp.created_at, 'YYYY-MM-DD') AS posted, "
+			"    COUNT(ca.id)::int AS application_count "
 			"FROM job_postings jp "
 			"INNER JOIN users u ON u.id = jp.employer_id "
 			"LEFT JOIN company_profiles cp ON cp.user_id = u.id "
+			"LEFT JOIN candidate_applications ca ON ca.job_posting_id = jp.id "
 			"WHERE ($1 = '' OR jp.status = $1) "
+			"GROUP BY jp.id, jp.job_title, cp.company_name, u.full_name, jp.job_type, jp.status, jp.application_deadline, jp.created_at "
 			"ORDER BY jp.created_at DESC",
 			status);
 

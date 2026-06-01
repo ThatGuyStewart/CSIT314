@@ -63,6 +63,7 @@ private:
 	void handleApiCandidateDashboard(const httplib::Request& req, httplib::Response& res);
 	void handleApiCandidateJobs(const httplib::Request& req, httplib::Response& res);
 	void handleApiCandidateJobDetails(const httplib::Request& req, httplib::Response& res);
+	void handleApiCandidateApplications(const httplib::Request& req, httplib::Response& res);
 	void handleApiCandidateApply(const httplib::Request& req, httplib::Response& res);
 	void handleApiCandidateRecommendedJobs(const httplib::Request& req, httplib::Response& res);
 	void handleApiCandidateMembership(const httplib::Request& req, httplib::Response& res);
@@ -70,6 +71,7 @@ private:
 	void handleApiEmployerDashboard(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerCandidates(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerCandidateDetails(const httplib::Request& req, httplib::Response& res);
+	void handleApiEmployerApplicants(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerRecommendations(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerMembership(const httplib::Request& req, httplib::Response& res);
 	void handleApiEmployerJobs(const httplib::Request& req, httplib::Response& res);
