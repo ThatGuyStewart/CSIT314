@@ -95,6 +95,49 @@
       .replace(/'/g, '&#39;');
   }
 
+  function adminCandidateDetailsUrl(id) {
+    return `/admin/candidate?id=${encodeURIComponent(id)}`;
+  }
+
+  function adminEmployerDetailsUrl(id) {
+    return `/admin/employer?id=${encodeURIComponent(id)}`;
+  }
+
+  function adminJobDetailsUrl(id) {
+    return `/admin/job?id=${encodeURIComponent(id)}`;
+  }
+
+  function jobDetailsUrl(id) {
+    return `/candidate/job?id=${encodeURIComponent(id)}`;
+  }
+
+  function employerCandidateDetailsUrl(id) {
+    return `/employer/candidate?id=${encodeURIComponent(id)}`;
+  }
+
+  function getAdminUserDetailsUrl(user) {
+    if (!user || !user.id) return '';
+    if (user.role === 'candidate') return adminCandidateDetailsUrl(user.id);
+    if (user.role === 'employer') return adminEmployerDetailsUrl(user.id);
+    return '';
+  }
+
+  function renderSkillBadges(skills) {
+    return String(skills || '')
+      .split(',')
+      .map(skill => skill.trim())
+      .filter(Boolean)
+      .map(skill => `<span class="skill-tag">${escapeHtml(skill)}</span>`)
+      .join('');
+  }
+
+  function runPageInitializer(pathname, initializersByPath) {
+    const initializer = initializersByPath[pathname.toLowerCase()];
+    if (typeof initializer === 'function') {
+      initializer();
+    }
+  }
+
   function applyPlanPresentation(options) {
     const status = formatMembershipStatus(options.status);
     const isPremium = status.toLowerCase() === 'premium';
@@ -119,13 +162,32 @@
     const freeMarker = options.freeMarkerSelector ? document.querySelector(options.freeMarkerSelector) : null;
     const premiumButton = options.premiumButtonSelector ? document.querySelector(options.premiumButtonSelector) : null;
     const primaryAction = options.primaryActionSelector ? document.querySelector(options.primaryActionSelector) : null;
-    if (freeMarker) freeMarker.textContent = isPremium ? 'Available Plan' : 'Current Plan';
+    if (freeMarker) freeMarker.textContent = isPremium ? '⬇ Downgrade to Free Plan' : 'Current Plan';
+    if (freeMarker) freeMarker.dataset.membershipTarget = 'free';
     if (freeMarker) freeMarker.disabled = !isPremium;
     if (freeMarker) freeMarker.style.cursor = isPremium ? 'pointer' : 'default';
+    if (freeMarker) freeMarker.className = isPremium ? 'btn btn-secondary btn-full' : 'badge badge-open';
+    if (freeMarker) freeMarker.style.width = '100%';
+    if (freeMarker) freeMarker.style.justifyContent = 'center';
+    if (freeMarker) freeMarker.style.padding = '10px';
+    if (freeMarker) freeMarker.style.border = isPremium ? '1px solid #000' : 'none';
+    if (freeMarker) freeMarker.style.fontWeight = isPremium ? '700' : '';
     if (premiumButton) premiumButton.textContent = isPremium ? 'Current Plan' : '⭐ Upgrade Now';
+    if (premiumButton) premiumButton.dataset.membershipTarget = 'premium';
     if (premiumButton) premiumButton.disabled = isPremium;
-    if (primaryAction) primaryAction.textContent = isPremium ? 'Current Plan: Premium' : '⭐ Upgrade to Premium';
-    if (primaryAction) primaryAction.disabled = isPremium;
+    if (premiumButton) premiumButton.className = isPremium ? 'badge badge-open' : 'btn btn-full';
+    if (premiumButton) premiumButton.style.width = '100%';
+    if (premiumButton) premiumButton.style.justifyContent = 'center';
+    if (premiumButton) premiumButton.style.padding = '10px';
+    if (premiumButton) premiumButton.style.border = 'none';
+    if (premiumButton) premiumButton.style.cursor = isPremium ? 'default' : 'pointer';
+    if (premiumButton) premiumButton.style.background = isPremium ? '' : '#fff';
+    if (premiumButton) premiumButton.style.color = isPremium ? '' : 'var(--navy-primary)';
+    if (premiumButton) premiumButton.style.fontWeight = '700';
+    if (primaryAction) primaryAction.textContent = isPremium ? '⬇ Downgrade to Free Plan' : '⭐ Upgrade to Premium';
+    if (primaryAction) primaryAction.dataset.membershipTarget = isPremium ? 'free' : 'premium';
+    if (primaryAction) primaryAction.disabled = false;
+    if (primaryAction) primaryAction.style.border = isPremium ? '1px solid #000' : '';
   }
 
   async function updateMembershipStatus(endpoint, membershipStatus) {
@@ -215,9 +277,653 @@
           `;
   }
 
+  function renderCandidateBrowseJobCard(job) {
+    return `
+            <a class="card recommended-job-card" href="${jobDetailsUrl(job.id)}" style="display:block; text-decoration:none; color:inherit;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:16px;">
+                <div>
+                  <div class="card-title">${escapeHtml(job.title)}</div>
+                  <div style="color:var(--text-muted); margin-bottom:8px;">${escapeHtml(job.company || 'Company not listed')}</div>
+                  <div style="font-size:0.9rem; color:var(--text-muted);">${escapeHtml(job.location || 'Location not listed')} • ${escapeHtml(job.workMode || 'Mode not listed')} • ${escapeHtml(job.type || 'Type not listed')}</div>
+                </div>
+              </div>
+              <div style="margin-bottom:12px; font-weight:600; color:var(--navy-primary);">${escapeHtml(job.salaryRange || 'Salary not listed')}</div>
+            </a>
+          `;
+  }
+
+  function renderEmployerBrowseCandidateCard(candidate) {
+    const candidateId = candidate.candidateId ?? candidate.id;
+
+    return `
+      <a class="card" href="${employerCandidateDetailsUrl(candidateId)}" style="display:block; text-decoration:none; color:inherit;">
+        <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+          <div>
+            <div class="card-title">${escapeHtml(candidate.fullName)}</div>
+            <div style="color:var(--text-muted); margin-bottom:8px;">${escapeHtml(candidate.major || 'Field not listed')}</div>
+          </div>
+        </div>
+        <div style="font-size:0.9rem; margin-bottom:8px;">${escapeHtml(candidate.skills || 'No skills listed')}</div>
+        <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:8px;">${escapeHtml(candidate.preferredLocation || 'Location not listed')} • ${escapeHtml(candidate.preferredWorkMode || 'Mode not listed')} • ${escapeHtml(candidate.experienceText || 'Experience not listed')}</div>
+      </a>
+    `;
+  }
+
+  async function loadRecommendedJobsPage() {
+    const grid = document.querySelector('#recommendations-grid');
+    if (!grid) return;
+
+    try {
+      const response = await fetch('/api/candidate/recommended-jobs', { credentials: 'same-origin' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return;
+
+      const jobs = data.jobs || [];
+      const membershipStatus = data.membershipStatus || data.membership_status || 'free';
+      const totalCountEl = document.querySelector('#total-count');
+      const visibleCountEl = document.querySelector('#visible-count');
+      const membershipBadge = document.querySelector('#membership-badge');
+
+      if (membershipBadge) {
+        membershipBadge.textContent = formatMembershipStatus(membershipStatus);
+      }
+
+      if (totalCountEl) totalCountEl.textContent = String(jobs.length);
+      if (visibleCountEl) visibleCountEl.textContent = String(jobs.length);
+
+      grid.innerHTML = jobs.length
+        ? jobs.map(renderCandidateRecommendedJobCard).join('')
+        : '<div class="card">No recommended jobs available right now.</div>';
+    } catch {
+      grid.innerHTML = '<div class="card">Unable to load recommended jobs.</div>';
+    }
+  }
+
+  async function loadCandidateDashboard() {
+    const recommendedCount = document.querySelector('#recommendedCount');
+    if (!recommendedCount) return;
+
+    try {
+      const response = await fetch('/api/candidate/dashboard', { credentials: 'same-origin' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return;
+
+      const setText = (selector, value) => {
+        const el = document.querySelector(selector);
+        if (el) el.textContent = value;
+      };
+
+      setText('#recommendedCount', data.recommendedCount ?? 0);
+      setText('#profileComplete', `${data.profileComplete ?? 0}%`);
+      setText('#jobCount', data.jobCount ?? 0);
+
+      const completionBar = document.querySelector('.completion-bar');
+      if (completionBar) {
+        completionBar.style.width = `${data.profileComplete ?? 0}%`;
+      }
+
+      const completionText = document.querySelector('.completion-bar-wrap + div span');
+      if (completionText) {
+        completionText.textContent = `${data.profileComplete ?? 0}% complete`;
+      }
+
+      applyPlanPresentation({
+        status: data.membershipStatus || 'free',
+        subject: 'job',
+        badgeSelector: '#candidate-plan-badge',
+        limitSelector: '#candidate-rec-limit',
+        nameSelector: '#candidate-membership-name',
+        copySelector: '#candidate-membership-copy'
+      });
+
+      const topRecommendations = document.querySelector('#top-recommendations');
+      if (topRecommendations) {
+        const jobs = data.topRecommendations || [];
+        topRecommendations.innerHTML = jobs.length
+          ? jobs.map(renderCandidateRecommendedJobCard).join('')
+          : '<div class="card">No recommendations available yet.</div>';
+      }
+    } catch {
+    }
+  }
+
+  async function loadCandidateJobs() {
+    const grid = document.querySelector('#jobs-grid');
+    if (!grid) return;
+
+    const form = document.querySelector('form[action="/candidate/jobs"]');
+    const params = new URLSearchParams(window.location.search);
+    const shownCount = document.querySelector('#shownCount');
+    const totalCount = document.querySelector('#totalCount');
+    const fieldNames = ['keyword', 'location', 'work_mode', 'job_type', 'career_level', 'salary_min', 'salary_max'];
+
+    fieldNames.forEach(name => {
+      const field = form?.querySelector(`[name="${name}"]`);
+      if (field && params.has(name)) {
+        field.value = params.get(name) || '';
+      }
+    });
+
+    const query = params.toString();
+
+    try {
+      const response = await fetch(`/api/candidate/jobs${query ? `?${query}` : ''}`, { credentials: 'same-origin' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        grid.innerHTML = '<div class="card">Unable to load jobs.</div>';
+        return;
+      }
+
+      const jobs = data.jobs || [];
+      if (shownCount) shownCount.textContent = String(jobs.length);
+      if (totalCount) totalCount.textContent = String(jobs.length);
+
+      grid.innerHTML = jobs.length
+        ? jobs.map(renderCandidateBrowseJobCard).join('')
+        : '<div class="card">No jobs found.</div>';
+    } catch {
+      grid.innerHTML = '<div class="card">Unable to load jobs.</div>';
+    }
+  }
+
+  async function loadEmployerDashboard() {
+    const activeCount = document.querySelector('#activeCount');
+    if (!activeCount) return;
+
+    try {
+      const response = await fetch('/api/employer/dashboard', { credentials: 'same-origin' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return;
+
+      const setText = (selector, value) => {
+        const el = document.querySelector(selector);
+        if (el) el.textContent = value;
+      };
+
+      setText('#activeCount', data.activeCount ?? 0);
+      setText('#totalPosts', data.totalPosts ?? 0);
+      setText('#totalCandidates', data.totalCandidates ?? 0);
+
+      applyPlanPresentation({
+        status: data.membershipStatus || 'free',
+        subject: 'candidate',
+        badgeSelector: '#employer-plan-badge',
+        limitSelector: '#employer-rec-limit',
+        nameSelector: '#employer-membership-name',
+        copySelector: '#employer-membership-copy'
+      });
+
+      const topCandidates = document.querySelector('#top-candidates');
+      if (topCandidates) {
+        const candidates = data.topCandidates || [];
+        topCandidates.innerHTML = candidates.length
+          ? candidates.map(candidate => renderEmployerRecommendationCard(candidate, { showMatchedJobs: true })).join('')
+          : '<div class="card">No recommendations available yet.</div>';
+      }
+    } catch {
+      const topCandidates = document.querySelector('#top-candidates');
+      if (topCandidates) {
+        topCandidates.innerHTML = '<div class="card">Unable to load top candidates.</div>';
+      }
+    }
+  }
+
+  async function loadEmployerRecommendedCandidatesPage() {
+    const grid = document.querySelector('#recommendations-grid');
+    if (!grid) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const selectedJobId = params.get('job_id') || '';
+    const jobSelect = document.querySelector('select[name="job_id"]');
+    const totalCountEl = document.querySelector('#total-count');
+    const visibleCountEl = document.querySelector('#visible-count');
+    const membershipBadge = document.querySelector('.page-header .badge');
+
+    try {
+      const jobsResponse = await fetch('/api/employer/jobs', { credentials: 'same-origin' });
+      const jobsData = await jobsResponse.json().catch(() => ({}));
+      const jobs = jobsResponse.ok ? (jobsData.jobs || []) : [];
+
+      if (jobSelect) {
+        const optionsMarkup = jobs.map(job => {
+          const isSelected = String(job.id) === selectedJobId ? ' selected' : '';
+          return `<option value="${escapeHtml(job.id)}"${isSelected}>${escapeHtml(job.title || 'Untitled job')}</option>`;
+        }).join('');
+
+        jobSelect.innerHTML = `<option value="">Select a job…</option>${optionsMarkup}`;
+      }
+
+      const dashboardResponse = await fetch('/api/employer/dashboard', { credentials: 'same-origin' });
+      const dashboardData = await dashboardResponse.json().catch(() => ({}));
+      const membershipStatus = dashboardResponse.ok ? (dashboardData.membershipStatus || dashboardData.membership_status || 'free') : 'free';
+      if (membershipBadge) {
+        membershipBadge.textContent = formatMembershipStatus(membershipStatus);
+      }
+
+      if (!selectedJobId) {
+        if (totalCountEl) totalCountEl.textContent = '0';
+        if (visibleCountEl) visibleCountEl.textContent = '0';
+        grid.innerHTML = '<div class="card">Select a job posting to view matched candidates.</div>';
+        return;
+      }
+
+      const response = await fetch(`/api/employer/recommendations?job_id=${encodeURIComponent(selectedJobId)}`, { credentials: 'same-origin' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        grid.innerHTML = '<div class="card">Unable to load recommended candidates.</div>';
+        return;
+      }
+
+      const candidates = data.candidates || data.recommendations || data.topCandidates || [];
+      if (totalCountEl) totalCountEl.textContent = String(candidates.length);
+      if (visibleCountEl) visibleCountEl.textContent = String(candidates.length);
+
+      grid.innerHTML = candidates.length
+        ? candidates.map(candidate => renderEmployerRecommendationCard(candidate, { showMatchedJobs: false })).join('')
+        : '<div class="card">No matched candidates found for this job.</div>';
+    } catch {
+      grid.innerHTML = '<div class="card">Unable to load recommended candidates.</div>';
+    }
+  }
+
+  async function loadEmployerJobs() {
+    const jobsList = document.querySelector('#jobs-list');
+    if (!jobsList) return;
+
+    const successBox = document.querySelector('#success-message');
+    const errorBox = document.querySelector('#error-message');
+
+    try {
+      const response = await fetch('/api/employer/jobs', { credentials: 'same-origin' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        jobsList.innerHTML = '<div class="card">Unable to load job postings.</div>';
+        return;
+      }
+
+      const jobs = data.jobs || [];
+      const jobCount = document.querySelector('#job-count');
+      if (jobCount) {
+        jobCount.textContent = String(jobs.length);
+      }
+
+      if (successBox) {
+        const successMessage = new URLSearchParams(window.location.search).get('success');
+        if (successMessage) {
+          successBox.textContent = successMessage;
+          successBox.hidden = false;
+        }
+      }
+
+      if (errorBox) {
+        errorBox.hidden = true;
+      }
+
+      jobsList.innerHTML = jobs.length
+        ? jobs.map(job => `
+            <div class="card">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+                <div>
+                  <div class="card-title">${escapeHtml(job.title || 'Untitled job')}</div>
+                  <div style="color:var(--text-muted); margin-bottom:8px;">${escapeHtml(job.location || 'Location not listed')} • ${escapeHtml(job.workMode || 'Mode not listed')} • ${escapeHtml(job.type || 'Type not listed')}</div>
+                  <div style="font-size:0.9rem; color:var(--text-muted);">${escapeHtml(job.salaryRange || 'Salary not listed')}</div>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                  <a href="/employer/edit-job?id=${encodeURIComponent(job.id)}" class="btn btn-secondary btn-sm">Edit</a>
+                </div>
+              </div>
+            </div>
+          `).join('')
+        : '<div class="card">No job postings yet.</div>';
+    } catch {
+      jobsList.innerHTML = '<div class="card">Unable to load job postings.</div>';
+    }
+  }
+
+  async function loadEmployerCandidates() {
+    const grid = document.querySelector('#candidates-grid');
+    if (!grid) return;
+
+    const form = document.querySelector('#employer-candidates-form');
+    const params = new URLSearchParams(window.location.search);
+    const shownCount = document.querySelector('#shownCount');
+    const totalCount = document.querySelector('#totalCount');
+
+    const fieldNames = ['keyword', 'skills', 'education', 'years_experience', 'preferred_work_mode', 'preferred_location'];
+    fieldNames.forEach(name => {
+      const field = form?.querySelector(`[name="${name}"]`);
+      if (field && params.has(name)) {
+        field.value = params.get(name) || '';
+      }
+    });
+
+    const query = params.toString();
+
+    try {
+      const response = await fetch(`/api/employer/candidates${query ? `?${query}` : ''}`, { credentials: 'same-origin' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        grid.innerHTML = '<div class="card">Unable to load candidates.</div>';
+        return;
+      }
+
+      const candidates = data.candidates || [];
+      if (shownCount) shownCount.textContent = String(candidates.length);
+      if (totalCount) totalCount.textContent = String(candidates.length);
+
+      grid.innerHTML = candidates.length
+        ? candidates.map(renderEmployerBrowseCandidateCard).join('')
+        : '<div class="card">No candidates found.</div>';
+    } catch {
+      grid.innerHTML = '<div class="card">Unable to load candidates.</div>';
+    }
+  }
+
+  async function loadEmployerCandidateDetails() {
+    const name = document.querySelector('#candidate-name');
+    if (!name) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const candidateId = params.get('id');
+    if (!candidateId) return;
+
+    const form = document.querySelector('form[action="/employer/candidate_details"]');
+    const hiddenId = form?.querySelector('input[name="id"]');
+    const jobSelect = form?.querySelector('select[name="job_id"]');
+    const selectedJobId = params.get('job_id') || '';
+
+    if (hiddenId) {
+      hiddenId.value = candidateId;
+    }
+
+    try {
+      const jobsResponse = await fetch('/api/employer/jobs', { credentials: 'same-origin' });
+      const jobsData = await jobsResponse.json().catch(() => ({}));
+      const jobs = jobsResponse.ok ? (jobsData.jobs || []) : [];
+
+      if (jobSelect) {
+        const optionsMarkup = jobs.map(job => {
+          const isSelected = String(job.id) === selectedJobId ? ' selected' : '';
+          return `<option value="${escapeHtml(job.id)}"${isSelected}>${escapeHtml(job.title || 'Untitled job')}</option>`;
+        }).join('');
+
+        jobSelect.innerHTML = `<option value="">Select a job posting…</option>${optionsMarkup}`;
+      }
+
+      const requestUrl = selectedJobId
+        ? `/api/employer/candidate?id=${encodeURIComponent(candidateId)}&job_id=${encodeURIComponent(selectedJobId)}`
+        : `/api/employer/candidate?id=${encodeURIComponent(candidateId)}`;
+
+      const response = await fetch(requestUrl, { credentials: 'same-origin' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.candidate) return;
+
+      const candidate = data.candidate;
+      const setText = (selector, value, fallback = '') => {
+        const el = document.querySelector(selector);
+        if (el) el.textContent = value || fallback;
+      };
+
+      setText('#candidate-name', candidate.fullName, 'Candidate');
+      setText('#candidate-summary-meta', `${candidate.education || 'Education not listed'} · ${candidate.experienceText || 'Experience not listed'}`);
+      setText('#about-text', candidate.summary, 'No summary provided.');
+      setText('#work-experience', candidate.workExperience, 'No work experience listed.');
+      setText('#education', candidate.education, 'Not provided');
+      setText('#major', candidate.major, 'Not provided');
+      setText('#experience', candidate.experienceText, 'Not provided');
+      setText('#employment-type', candidate.employmentType, 'Not provided');
+      setText('#work-mode', candidate.preferredWorkMode, 'Not provided');
+      setText('#preferred-location', candidate.preferredLocation, 'Not provided');
+      setText('#expected-salary', candidate.expectedSalary, 'Not provided');
+      setText('#contact-info', candidate.contactInfo, 'Not provided');
+      setText('#member-since', candidate.createdAt, 'Not provided');
+      setText('#candidate-work-mode-badge', candidate.preferredWorkMode, 'Not provided');
+      setText('#matched-job-label', candidate.matchedJobTitle ? `Best match job: ${candidate.matchedJobTitle}` : 'Best match job: Not available');
+
+      const skillsContainer = document.querySelector('#skills-container');
+      if (skillsContainer) {
+        skillsContainer.innerHTML = renderSkillBadges(candidate.skills) || '<span style="color:var(--text-muted);">No skills listed.</span>';
+      }
+
+      const portfolioLink = document.querySelector('#candidate-portfolio-link');
+      if (portfolioLink) {
+        if (candidate.portfolioUrl) {
+          portfolioLink.href = candidate.portfolioUrl;
+          portfolioLink.hidden = false;
+        } else {
+          portfolioLink.hidden = true;
+        }
+      }
+
+      const matchScore = clampMatchScore(candidate.matchScore);
+      setText('#candidate-match-score-circle', `${matchScore}%`);
+      setText('#candidate-match-score-text', `${matchScore}%`);
+      const matchScoreBar = document.querySelector('#candidate-match-score-bar');
+      if (matchScoreBar) {
+        matchScoreBar.style.width = `${matchScore}%`;
+        matchScoreBar.removeAttribute('data-width');
+      }
+      applyScoreCircleColor('#candidate-match-score-circle', matchScore);
+      applyMatchBarColor('#candidate-match-score-bar', matchScore);
+
+      const highlights = document.querySelector('#match-highlights');
+      if (highlights) {
+        highlights.innerHTML = buildMatchReasonsMarkup(candidate.matchReasons, 'No personalized match highlights available.');
+      }
+    } catch {
+    }
+  }
+
+  async function loadCandidateJobDetails() {
+    const title = document.querySelector('#job-title');
+    if (!title) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const jobId = params.get('id');
+    if (!jobId) return;
+
+    try {
+      const response = await fetch(`/api/candidate/job?id=${encodeURIComponent(jobId)}`, { credentials: 'same-origin' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.job) return;
+
+      const job = data.job;
+      const setText = (selector, value, fallback = '') => {
+        const el = document.querySelector(selector);
+        if (el) el.textContent = value || fallback;
+      };
+
+      setText('#job-title', job.title, 'Job Title');
+      setText('#company-name', `🏢 ${job.company || 'Company'}`);
+      setText('#job-status', job.status, 'Unknown');
+      setText('#job-location', `📍 ${job.location || 'Location not listed'}`);
+      setText('#job-workmode', job.workMode, 'Mode not listed');
+      setText('#job-type', `💼 ${job.type || 'Type not listed'}`);
+      setText('#job-level', `📊 ${job.careerLevel || 'Level not listed'}`);
+      setText('#job-salary', `💰 ${job.salaryRange || 'Salary not listed'}`);
+      setText('#job-description', job.jobDescription, 'No job description available.');
+      setText('#company-description', job.companyDescription, 'No company description available.');
+      setText('#required-education', job.requiredEducation, 'Not specified');
+      setText('#required-experience', job.requiredExperience ? `${job.requiredExperience} years` : 'Not specified');
+      setText('#detail-job-type', job.type, 'Not specified');
+      setText('#detail-career-level', job.careerLevel, 'Not specified');
+      setText('#application-deadline', job.deadline, 'Not specified');
+      setText('#detail-salary-range', job.salaryRange, 'Not specified');
+
+      const skillsContainer = document.querySelector('#required-skills');
+      if (skillsContainer) {
+        skillsContainer.innerHTML = renderSkillBadges(job.requiredSkills) || '<span style="color:var(--text-muted);">No skills listed.</span>';
+      }
+
+      const matchScore = clampMatchScore(job.matchScore);
+      setText('#match-score-circle', `${matchScore}%`);
+      setText('#match-score-text', `${matchScore}%`);
+      const matchScoreBar = document.querySelector('#match-score-bar');
+      if (matchScoreBar) {
+        matchScoreBar.style.width = `${matchScore}%`;
+        matchScoreBar.removeAttribute('data-width');
+      }
+      applyScoreCircleColor('#match-score-circle', matchScore);
+      applyMatchBarColor('#match-score-bar', matchScore);
+
+      const reasons = document.querySelector('#match-reasons');
+      if (reasons) {
+        reasons.innerHTML = buildMatchReasonsMarkup(job.matchReasons, 'No personalized match reasons available.');
+      }
+
+      const companyWebsiteLink = document.querySelector('.card a.btn.btn-secondary.btn-sm');
+      if (companyWebsiteLink) {
+        if (job.companyWebsiteUrl) {
+          companyWebsiteLink.href = job.companyWebsiteUrl;
+          companyWebsiteLink.hidden = false;
+        } else {
+          companyWebsiteLink.hidden = true;
+        }
+      }
+
+      const applyForm = document.querySelector('#candidate-apply-form');
+      const applyButton = document.querySelector('#candidate-apply-button');
+      const applySuccess = document.querySelector('#apply-success');
+      const setAppliedState = isApplied => {
+        if (!applyButton) return;
+        applyButton.textContent = isApplied ? '✅ Applied' : '🚀 Apply Now';
+        applyButton.disabled = isApplied;
+        if (applySuccess) {
+          applySuccess.hidden = !isApplied;
+        }
+      };
+
+      setAppliedState(Boolean(job.isApplied));
+
+      if (applyForm && applyButton && !applyForm.dataset.applyBound) {
+        applyForm.dataset.applyBound = 'true';
+        applyForm.addEventListener('submit', async event => {
+          event.preventDefault();
+
+          try {
+            const response = await fetch('/api/candidate/apply', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              credentials: 'same-origin',
+              body: JSON.stringify({ jobId: Number(jobId) })
+            });
+
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              return;
+            }
+
+            setAppliedState(Boolean(data.isApplied));
+          } catch {
+          }
+        });
+      }
+    } catch {
+    }
+  }
+
+  async function initializeMembershipPage(options) {
+    const primaryAction = options.primaryActionSelector ? document.querySelector(options.primaryActionSelector) : null;
+    const premiumButton = options.premiumButtonSelector ? document.querySelector(options.premiumButtonSelector) : null;
+    const freeMarker = options.freeMarkerSelector ? document.querySelector(options.freeMarkerSelector) : null;
+    const pageBadge = options.pageBadgeSelector ? document.querySelector(options.pageBadgeSelector) : null;
+
+    if (!primaryAction && !premiumButton && !freeMarker && !pageBadge) return;
+
+    const setActionState = (button, disabled) => {
+      if (button) button.disabled = disabled;
+    };
+
+    const renderStatus = membershipStatus => {
+      const normalizedStatus = formatMembershipStatus(membershipStatus);
+      applyPlanPresentation({
+        status: normalizedStatus,
+        subject: options.subject,
+        badgeSelector: options.pageBadgeSelector,
+        titleSelector: options.titleSelector,
+        copySelector: options.copySelector,
+        primaryActionSelector: options.primaryActionSelector,
+        freeMarkerSelector: options.freeMarkerSelector,
+        premiumButtonSelector: options.premiumButtonSelector
+      });
+    };
+
+    let membershipStatus = 'free';
+
+    try {
+      const response = await fetch(options.loadEndpoint, { credentials: 'same-origin' });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        membershipStatus = data.membershipStatus || data.membership_status || 'free';
+      }
+    } catch {
+    }
+
+    renderStatus(membershipStatus);
+
+    const bindMembershipButton = button => {
+      if (!button || button.dataset.membershipBound === 'true') return;
+
+      button.dataset.membershipBound = 'true';
+      button.addEventListener('click', async () => {
+        if (button.disabled) return;
+
+        const targetStatus = button.dataset.membershipTarget || 'free';
+        const buttons = [primaryAction, premiumButton, freeMarker].filter(Boolean);
+        buttons.forEach(item => setActionState(item, true));
+
+        try {
+          const data = await updateMembershipStatus(options.updateEndpoint, targetStatus);
+          membershipStatus = data.membershipStatus || data.membership_status || targetStatus;
+          renderStatus(membershipStatus);
+        } catch {
+        } finally {
+          buttons.forEach(item => {
+            const target = item.dataset.membershipTarget || 'free';
+            const isCurrentPlan = formatMembershipStatus(membershipStatus).toLowerCase() === formatMembershipStatus(target).toLowerCase();
+            setActionState(item, isCurrentPlan);
+          });
+        }
+      });
+    };
+
+    [primaryAction, premiumButton, freeMarker].forEach(bindMembershipButton);
+  }
+
+  async function loadCandidateMembershipPage() {
+    await initializeMembershipPage({
+      loadEndpoint: '/api/candidate/dashboard',
+      updateEndpoint: '/api/candidate/membership',
+      subject: 'job',
+      pageBadgeSelector: '#candidate-membership-page-badge',
+      titleSelector: '#candidate-current-plan-title',
+      copySelector: '#candidate-current-plan-copy',
+      primaryActionSelector: '#candidate-membership-primary-action',
+      freeMarkerSelector: '#candidate-free-plan-marker',
+      premiumButtonSelector: '#candidate-premium-upgrade-button'
+    });
+  }
+
+  async function loadEmployerMembershipPage() {
+    await initializeMembershipPage({
+      loadEndpoint: '/api/employer/dashboard',
+      updateEndpoint: '/api/employer/membership',
+      subject: 'candidate',
+      pageBadgeSelector: '#employer-membership-page-badge',
+      titleSelector: '#employer-current-plan-title',
+      copySelector: '#employer-current-plan-copy',
+      primaryActionSelector: '#employer-membership-primary-action',
+      freeMarkerSelector: '#employer-free-plan-marker',
+      premiumButtonSelector: '#employer-premium-upgrade-button'
+    });
+  }
+
   function renderEmployerRecommendationCard(recommendation, options = {}) {
     const matchScore = clampMatchScore(recommendation.matchScore);
     const showMatchedJobs = options.showMatchedJobs !== false;
+    const showMatchVisuals = options.showMatchVisuals !== false;
     const candidateId = recommendation.candidateId ?? recommendation.id;
     const matchedJobs = Array.isArray(recommendation.matchedJobs) ? recommendation.matchedJobs : [];
     const matchedJobsMarkup = showMatchedJobs && matchedJobs.length
@@ -242,16 +948,20 @@
             <div class="card-title">${escapeHtml(recommendation.fullName)}</div>
             <div style="color:var(--text-muted); margin-bottom:8px;">${escapeHtml(recommendation.major || 'Field not listed')}</div>
           </div>
+          ${showMatchVisuals ? `
           <div style="text-align:right; min-width:90px;">
             <div class="score-circle score-circle-sm" style="--score-color:${getMatchColor(matchScore)};">${matchScore}%</div>
             <div style="font-size:0.8rem; color:var(--text-muted);">Match</div>
           </div>
+          ` : ''}
         </div>
         <div style="font-size:0.9rem; margin-bottom:8px;">${escapeHtml(recommendation.skills || 'No skills listed')}</div>
         <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:8px;">${escapeHtml(recommendation.preferredLocation || 'Location not listed')} • ${escapeHtml(recommendation.preferredWorkMode || 'Mode not listed')} • ${escapeHtml(recommendation.experienceText || 'Experience not listed')}</div>
+        ${showMatchVisuals ? `
         <div class="match-bar-wrap" style="margin-bottom:10px;">
           <div class="match-bar" style="width:${matchScore}%; ${getMatchBarStyle(matchScore)}"></div>
         </div>
+        ` : ''}
         ${matchedJobsMarkup}
       </a>
     `;
@@ -797,6 +1507,72 @@
     }
 
     // ============================================================
+    // ADMIN DASHBOARD
+    // ============================================================
+    async function loadAdminDashboard() {
+        const recentUsersTable = document.querySelector('#recentUsersTable');
+        const recentJobsTable = document.querySelector('#recentJobsTable');
+        if (!recentUsersTable && !recentJobsTable) return;
+
+        try {
+            const response = await fetch('/api/admin/dashboard', { credentials: 'same-origin' });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) return;
+
+            const setText = (selector, value) => {
+                const el = document.querySelector(selector);
+                if (el) el.textContent = String(value ?? 0);
+            };
+
+            setText('#totalUsers', data.totalUsers);
+            setText('#totalCandidates', data.totalCandidates);
+            setText('#totalEmployers', data.totalEmployers);
+            setText('#premiumUsers', data.premiumUsers);
+            setText('#totalJobs', data.totalJobs);
+            setText('#openJobs', data.openJobs);
+            setText('#totalProfiles', data.totalProfiles);
+            setText('#totalCompanies', data.totalCompanies);
+
+            if (recentUsersTable) {
+                const users = data.recentUsers || [];
+                recentUsersTable.innerHTML = users.length
+                    ? users.map(user => `
+                <tr>
+                  <td>${getAdminUserDetailsUrl(user)
+                        ? `<a href="${getAdminUserDetailsUrl(user)}" style="color:inherit; text-decoration:none; font-weight:600;">${escapeHtml(user.full_name ?? '')}</a>`
+                        : escapeHtml(user.full_name ?? '')}</td>
+                  <td>${escapeHtml(user.role ?? '')}</td>
+                  <td>${escapeHtml(user.membership_status ?? '')}</td>
+                  <td>${escapeHtml(user.created_at ?? '')}</td>
+                </tr>
+              `).join('')
+                    : '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:24px;">No recent users.</td></tr>';
+            }
+
+            if (recentJobsTable) {
+                const jobs = data.recentJobs || [];
+                recentJobsTable.innerHTML = jobs.length
+                    ? jobs.map(job => `
+                <tr>
+                  <td><a href="${adminJobDetailsUrl(job.id)}" style="color:inherit; text-decoration:none; font-weight:600;">${escapeHtml(job.title ?? '')}</a></td>
+                  <td>${escapeHtml(job.company ?? '')}</td>
+                  <td>${escapeHtml(job.status ?? '')}</td>
+                  <td>${escapeHtml(job.posted ?? '')}</td>
+                </tr>
+              `).join('')
+                    : '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:24px;">No recent jobs.</td></tr>';
+            }
+        } catch {
+            if (recentUsersTable) {
+                recentUsersTable.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--error); padding:24px;">Unable to load recent users.</td></tr>';
+            }
+            if (recentJobsTable) {
+                recentJobsTable.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--error); padding:24px;">Unable to load recent jobs.</td></tr>';
+            }
+        }
+    }
+
+    // ============================================================
     // ADMIN USERS LIST -> JSON API
     // ============================================================
     const adminUsersFilterForm = document.querySelector('#admin-users-filter-form');
@@ -805,6 +1581,12 @@
 
     async function loadAdminUsers() {
         if (!usersTableBody) return;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchField = adminUsersFilterForm?.querySelector('[name="search"]');
+        const roleField = adminUsersFilterForm?.querySelector('[name="role"]');
+        if (searchField && urlParams.has('search')) searchField.value = urlParams.get('search') || '';
+        if (roleField && urlParams.has('role')) roleField.value = urlParams.get('role') || '';
 
         const search = adminUsersFilterForm?.querySelector('[name="search"]')?.value.trim() || '';
         const role = adminUsersFilterForm?.querySelector('[name="role"]')?.value || '';
@@ -837,13 +1619,15 @@
             usersTableBody.innerHTML = users.map((user, index) => `
         <tr>
           <td>${index + 1}</td>
-          <td>${user.full_name ?? ''}</td>
-          <td>${user.email ?? ''}</td>
-          <td>${user.role ?? ''}</td>
-          <td>${user.membership_status ?? ''}</td>
-          <td>${user.profile_or_jobs ?? '-'}</td>
-          <td>${user.created_at ?? ''}</td>
-          <td><button type="button" class="btn btn-secondary btn-sm">View</button></td>
+          <td>${escapeHtml(user.full_name ?? '')}</td>
+          <td>${escapeHtml(user.email ?? '')}</td>
+          <td>${escapeHtml(user.role ?? '')}</td>
+          <td>${escapeHtml(user.membership_status ?? '')}</td>
+          <td>${escapeHtml(user.profile_or_jobs ?? '-')}</td>
+          <td>${escapeHtml(user.created_at ?? '')}</td>
+          <td>${getAdminUserDetailsUrl(user)
+            ? `<a href="${getAdminUserDetailsUrl(user)}" class="btn btn-secondary btn-sm">View</a>`
+            : '<span style="color:var(--text-muted); font-size:0.85rem;">N/A</span>'}</td>
         </tr>
       `).join('');
         } catch {
@@ -861,582 +1645,77 @@
     }
 
     // ============================================================
-    // CANDIDATE DASHBOARD
+    // ADMIN JOBS
     // ============================================================
-    function jobDetailsUrl(jobId) {
-        return `/candidate/job?id=${encodeURIComponent(jobId)}`;
-    }
+    const adminJobsForm = document.querySelector('form[action="/admin/jobs"]');
+    const adminJobsBody = document.querySelector('#jobs-table-body');
 
-    async function loadCandidateDashboard() {
-        if (!document.querySelector('#recommendedCount')) return;
+    async function loadAdminJobs() {
+        if (!adminJobsForm || !adminJobsBody) return;
 
+        const searchField = adminJobsForm.querySelector('[name="search"]');
+        const statusField = adminJobsForm.querySelector('[name="status"]');
+        const urlParams = new URLSearchParams(window.location.search);
+        if (searchField && urlParams.has('search')) searchField.value = urlParams.get('search') || '';
+        if (statusField && urlParams.has('status')) statusField.value = urlParams.get('status') || '';
+
+        const params = new URLSearchParams(new FormData(adminJobsForm));
         try {
-            const response = await fetch('/api/candidate/dashboard', { credentials: 'same-origin' });
+            const response = await fetch(`/api/admin/jobs?${params.toString()}`, { credentials: 'same-origin' });
             const data = await response.json().catch(() => ({}));
-            if (!response.ok) return;
-
-            const recommendedCount = document.querySelector('#recommendedCount');
-            const profileComplete = document.querySelector('#profileComplete');
-            const jobCount = document.querySelector('#jobCount');
-            const topRecommendations = document.querySelector('#top-recommendations');
-            const completionBar = document.querySelector('.completion-bar');
-            const completionText = document.querySelector('.completion-bar-wrap + div span');
-            const membershipStatus = data.membershipStatus || 'free';
-
-            if (recommendedCount) recommendedCount.textContent = data.recommendedCount ?? 0;
-            if (profileComplete) profileComplete.textContent = `${data.profileComplete ?? 0}%`;
-            if (jobCount) jobCount.textContent = data.jobCount ?? 0;
-            if (completionBar) completionBar.style.width = `${data.profileComplete ?? 0}%`;
-            if (completionText) completionText.textContent = `${data.profileComplete ?? 0}% complete`;
-
-            applyPlanPresentation({
-                status: membershipStatus,
-                subject: 'job',
-                badgeSelector: '#candidate-plan-badge',
-                nameSelector: '#candidate-membership-name',
-                limitSelector: '#candidate-rec-limit',
-                copySelector: '#candidate-membership-copy',
-                badgeSelectorFallback: '#candidate-membership-badge'
-            });
-            const membershipBadge = document.querySelector('#candidate-membership-badge');
-            if (membershipBadge) membershipBadge.textContent = formatMembershipStatus(membershipStatus);
-
-            if (topRecommendations) {
-                const jobs = data.topRecommendations || [];
-                topRecommendations.innerHTML = jobs.length
-                    ? jobs.map(job => renderCandidateRecommendedJobCard(job).replace('recommended-job-card', 'recommended-job-card mb-16')).join('')
-                    : '<div class="card">No recommendations available.</div>';
+            if (!response.ok) {
+                adminJobsBody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--error); padding:40px;">Failed to load jobs.</td></tr>';
+                return;
             }
-        } catch {
-        }
-    }
-
-    // ============================================================
-    // CANDIDATE JOBS
-    // ============================================================
-    const candidateJobsForm = document.querySelector('form[action="/candidate/jobs"]');
-    const jobsGrid = document.querySelector('#jobs-grid');
-
-    function populateCandidateJobsFiltersFromUrl() {
-        if (!candidateJobsForm) return;
-
-        const params = new URLSearchParams(window.location.search);
-        candidateJobsForm.querySelectorAll('[name]').forEach(field => {
-            const value = params.get(field.name);
-            if (value !== null) {
-                field.value = value;
-            }
-        });
-    }
-
-    function syncCandidateJobsUrl() {
-        if (!candidateJobsForm) return;
-
-        const params = new URLSearchParams();
-        new FormData(candidateJobsForm).forEach((value, key) => {
-            const text = String(value).trim();
-            if (text) {
-                params.set(key, text);
-            }
-        });
-
-        const query = params.toString();
-        const targetUrl = query ? `/candidate/jobs?${query}` : '/candidate/jobs';
-        window.history.replaceState({}, '', targetUrl);
-    }
-
-    async function loadCandidateJobs() {
-        if (!jobsGrid || !candidateJobsForm) return;
-
-        const params = new URLSearchParams(new FormData(candidateJobsForm));
-        try {
-            const response = await fetch(`/api/candidate/jobs?${params.toString()}`, { credentials: 'same-origin' });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) return;
 
             const jobs = data.jobs || [];
-            const shownCount = document.querySelector('#shownCount');
-            const totalCount = document.querySelector('#totalCount');
+            const totalJobs = document.querySelector('#totalJobs');
+            if (totalJobs) totalJobs.textContent = String(jobs.length);
 
-            if (shownCount) shownCount.textContent = String(jobs.length);
-            if (totalCount) totalCount.textContent = String(jobs.length);
-
-            jobsGrid.innerHTML = jobs.length
-                ? jobs.map(job => `
-            <a class="card" href="${jobDetailsUrl(job.id)}" style="display:block; text-decoration:none; color:inherit;">
-              <div class="card-title">${job.title}</div>
-              <div style="color:var(--text-muted); margin-bottom:8px;">${job.company}</div>
-              <div style="font-size:0.9rem; color:var(--text-muted);">${job.location} • ${job.workMode} • ${job.type}</div>
-              <div style="margin-top:8px;">${job.salaryRange || 'Salary not listed'}</div>
-              <div style="margin-top:8px; font-size:0.85rem; color:var(--text-muted);">Deadline: ${job.deadline || 'N/A'}</div>
-            </a>
+            adminJobsBody.innerHTML = jobs.length
+                ? jobs.map((job, index) => `
+            <tr>
+              <td>${index + 1}</td>
+              <td>${escapeHtml(job.title)}</td>
+              <td>${escapeHtml(job.company)}</td>
+              <td>${escapeHtml(job.type)}</td>
+              <td>${escapeHtml(job.status)}</td>
+              <td>${escapeHtml(job.deadline)}</td>
+              <td>${escapeHtml(job.posted)}</td>
+              <td><a href="${adminJobDetailsUrl(job.id)}" class="btn btn-secondary btn-sm">View</a></td>
+            </tr>
           `).join('')
-                : '<div class="card">No jobs found.</div>';
+                : '<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:40px;">No jobs found.</td></tr>';
         } catch {
+            adminJobsBody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--error); padding:40px;">Unable to reach the server.</td></tr>';
         }
     }
 
-    if (candidateJobsForm && jobsGrid) {
-        populateCandidateJobsFiltersFromUrl();
-        candidateJobsForm.addEventListener('submit', e => {
+    if (adminJobsForm) {
+        adminJobsForm.addEventListener('submit', e => {
             e.preventDefault();
-            syncCandidateJobsUrl();
-            loadCandidateJobs();
-        });
-        loadCandidateJobs();
-    }
-
-    // ============================================================
-    // CANDIDATE RECOMMENDED JOBS
-    // ============================================================
-    async function loadRecommendedJobsPage() {
-        const container = document.querySelector('#recommendations-grid');
-        if (!container) return;
-
-        try {
-            const response = await fetch('/api/candidate/recommended-jobs', { credentials: 'same-origin' });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) return;
-
-            const jobs = data.jobs || [];
-            const visibleCount = document.querySelector('#visible-count');
-            const totalCount = document.querySelector('#total-count');
-
-            if (visibleCount) visibleCount.textContent = String(jobs.length);
-            if (totalCount) totalCount.textContent = String(jobs.length);
-
-            container.innerHTML = jobs.length
-                ? jobs.map(job => renderCandidateRecommendedJobCard(job)).join('')
-                : '<div class="card">No recommendations available.</div>';
-        } catch {
-        }
-    }
-
-    // ============================================================
-    // CANDIDATE JOB DETAILS
-    // ============================================================
-    async function loadCandidateJobDetails() {
-        const title = document.querySelector('#job-title');
-        if (!title) return;
-
-        const params = new URLSearchParams(window.location.search);
-        const jobId = params.get('id');
-        if (!jobId) return;
-
-        try {
-            const response = await fetch(`/api/candidate/job?id=${encodeURIComponent(jobId)}`, { credentials: 'same-origin' });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok || !data.job) return;
-
-            const job = data.job;
-            const setText = (selector, value, fallback = '') => {
-                const el = document.querySelector(selector);
-                if (el) el.textContent = value || fallback;
-            };
-
-            setText('#job-title', job.title, 'Job Title');
-            setText('#company-name', job.company ? `🏢 ${job.company}` : '🏢 Company');
-            setText('#job-status', job.status, 'Open');
-            setText('#job-location', job.location ? `📍 ${job.location}` : '📍 Location not listed');
-            setText('#job-workmode', job.workMode || '');
-            setText('#job-type', job.type ? `💼 ${job.type}` : '💼 Type not listed');
-            setText('#job-level', job.careerLevel ? `📊 ${job.careerLevel}` : '📊 Level not listed');
-            setText('#job-salary', job.salaryRange ? `💰 ${job.salaryRange}` : '💰 Salary not listed');
-            setText('#job-description', job.jobDescription, 'No job description provided.');
-            setText('#company-description', job.companyDescription, 'No company description provided.');
-            setText('#required-education', job.requiredEducation, 'Not specified');
-            setText('#required-experience', Number.isFinite(job.requiredExperience) ? `${job.requiredExperience} years` : 'Not specified');
-            setText('#detail-job-type', job.type, 'Not specified');
-            setText('#detail-career-level', job.careerLevel, 'Not specified');
-            setText('#application-deadline', job.deadline, 'Not specified');
-            setText('#detail-salary-range', job.salaryRange, 'Not specified');
-
-            const matchScore = clampMatchScore(job.matchScore);
-            setText('#match-score-circle', `${matchScore}%`, '0%');
-            setText('#match-score-text', `${matchScore}%`, '0%');
-            applyScoreCircleColor('#match-score-circle', matchScore);
-
-            const matchBar = document.querySelector('#match-score-bar');
-            if (matchBar) {
-                matchBar.style.width = `${matchScore}%`;
-            }
-            applyMatchBarColor('#match-score-bar', matchScore);
-
-            const matchReasons = document.querySelector('#match-reasons');
-            if (matchReasons) {
-                const reasons = Array.isArray(job.matchReasons) ? job.matchReasons : [];
-                matchReasons.innerHTML = reasons.length
-                    ? reasons.map(reason => `<li>${reason}</li>`).join('')
-                    : '<li>No personalized match reasons available.</li>';
-            }
-
-            const skillsContainer = document.querySelector('#required-skills');
-            if (skillsContainer) {
-                const skills = (job.requiredSkills || '').split(',').map(skill => skill.trim()).filter(Boolean);
-                skillsContainer.innerHTML = skills.length
-                    ? skills.map(skill => `<span class="skill-tag">${skill}</span>`).join('')
-                    : '<span style="color:var(--text-muted);">No specific skills listed.</span>';
-            }
-
-            const websiteLink = document.querySelector('a[target="_blank"].btn.btn-secondary.btn-sm');
-            if (websiteLink) {
-                if (job.companyWebsiteUrl) {
-                    websiteLink.href = job.companyWebsiteUrl;
-                    websiteLink.hidden = false;
-                } else {
-                    websiteLink.hidden = true;
-                }
-            }
-        } catch {
-        }
-    }
-
-    // ============================================================
-    // EMPLOYER DASHBOARD
-    // ============================================================
-    async function loadEmployerDashboard() {
-        if (!document.querySelector('#activeCount')) return;
-
-        try {
-            const dashboardResponse = await fetch('/api/employer/dashboard', { credentials: 'same-origin' });
-            const data = await dashboardResponse.json().catch(() => ({}));
-            if (!dashboardResponse.ok) return;
-
-            const activeCount = document.querySelector('#activeCount');
-            const totalPosts = document.querySelector('#totalPosts');
-            const totalCandidates = document.querySelector('#totalCandidates');
-            const topCandidates = document.querySelector('#top-candidates');
-            const membershipStatus = data.membershipStatus || 'free';
-
-            if (activeCount) activeCount.textContent = data.activeCount ?? 0;
-            if (totalPosts) totalPosts.textContent = data.totalPosts ?? 0;
-            if (totalCandidates) totalCandidates.textContent = data.totalCandidates ?? 0;
-
-            applyPlanPresentation({
-                status: membershipStatus,
-                subject: 'candidate',
-                badgeSelector: '#employer-plan-badge',
-                nameSelector: '#employer-membership-name',
-                limitSelector: '#employer-rec-limit',
-                copySelector: '#employer-membership-copy'
-            });
-            const employerMembershipBadge = document.querySelector('#employer-membership-badge');
-            if (employerMembershipBadge) employerMembershipBadge.textContent = formatMembershipStatus(membershipStatus);
-
-            if (topCandidates) {
-                const candidates = data.topCandidates || [];
-                topCandidates.innerHTML = candidates.length
-                    ? candidates.map(candidate => renderEmployerRecommendationCard(candidate, { showMatchedJobs: true })).join('')
-                    : '<div class="card">No candidates available.</div>';
-            }
-        } catch {
-        }
-    }
-
-    async function loadCandidateMembershipPage() {
-        if (!document.querySelector('#candidate-membership-page-badge')) return;
-
-        try {
-            const response = await fetch('/api/candidate/dashboard', { credentials: 'same-origin' });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) return;
-
-            applyPlanPresentation({
-                status: data.membershipStatus || 'free',
-                subject: 'job',
-                badgeSelector: '#candidate-membership-page-badge',
-                titleSelector: '#candidate-current-plan-title',
-                copySelector: '#candidate-current-plan-copy',
-                freeMarkerSelector: '#candidate-free-plan-marker',
-                premiumButtonSelector: '#candidate-premium-upgrade-button',
-                primaryActionSelector: '#candidate-membership-primary-action'
-            });
-
-            const premiumButton = document.querySelector('#candidate-premium-upgrade-button');
-            const primaryAction = document.querySelector('#candidate-membership-primary-action');
-            const freeMarker = document.querySelector('#candidate-free-plan-marker');
-            const isPremium = (data.membershipStatus || '').toLowerCase() === 'premium';
-
-            if (premiumButton) {
-                premiumButton.onclick = async () => {
-                    if (premiumButton.disabled) return;
-                    await updateMembershipStatus('/api/candidate/membership', 'premium');
-                    await loadCandidateMembershipPage();
-                };
-            }
-
-            if (primaryAction) {
-                primaryAction.onclick = async () => {
-                    if (primaryAction.disabled) return;
-                    await updateMembershipStatus('/api/candidate/membership', 'premium');
-                    await loadCandidateMembershipPage();
-                };
-            }
-
-            if (freeMarker) {
-                freeMarker.onclick = async () => {
-                    if (!isPremium) return;
-                    await updateMembershipStatus('/api/candidate/membership', 'free');
-                    await loadCandidateMembershipPage();
-                };
-                freeMarker.textContent = isPremium ? 'Downgrade to Free' : 'Current Plan';
-            }
-        } catch {
-        }
-    }
-
-    async function loadEmployerMembershipPage() {
-        if (!document.querySelector('#employer-membership-page-badge')) return;
-
-        try {
-            const response = await fetch('/api/employer/dashboard', { credentials: 'same-origin' });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) return;
-
-            applyPlanPresentation({
-                status: data.membershipStatus || 'free',
-                subject: 'candidate',
-                badgeSelector: '#employer-membership-page-badge',
-                titleSelector: '#employer-current-plan-title',
-                copySelector: '#employer-current-plan-copy',
-                freeMarkerSelector: '#employer-free-plan-marker',
-                premiumButtonSelector: '#employer-premium-upgrade-button',
-                primaryActionSelector: '#employer-membership-primary-action'
-            });
-
-            const premiumButton = document.querySelector('#employer-premium-upgrade-button');
-            const primaryAction = document.querySelector('#employer-membership-primary-action');
-            const freeMarker = document.querySelector('#employer-free-plan-marker');
-            const isPremium = (data.membershipStatus || '').toLowerCase() === 'premium';
-
-            if (premiumButton) {
-                premiumButton.onclick = async () => {
-                    if (premiumButton.disabled) return;
-                    await updateMembershipStatus('/api/employer/membership', 'premium');
-                    await loadEmployerMembershipPage();
-                };
-            }
-
-            if (primaryAction) {
-                primaryAction.onclick = async () => {
-                    if (primaryAction.disabled) return;
-                    await updateMembershipStatus('/api/employer/membership', 'premium');
-                    await loadEmployerMembershipPage();
-                };
-            }
-
-            if (freeMarker) {
-                freeMarker.onclick = async () => {
-                    if (!isPremium) return;
-                    await updateMembershipStatus('/api/employer/membership', 'free');
-                    await loadEmployerMembershipPage();
-                };
-                freeMarker.textContent = isPremium ? 'Downgrade to Free' : 'Current Plan';
-            }
-        } catch {
-        }
-    }
-
-    // ============================================================
-    // EMPLOYER CANDIDATES
-    // ============================================================
-    const employerCandidatesForm = document.querySelector('form[action="/employer/candidates"]');
-    const employerCandidatesGrid = document.querySelector('#candidates-grid');
-
-    function employerCandidateDetailsUrl(candidateId) {
-        return `/employer/candidate?id=${encodeURIComponent(candidateId)}`;
-    }
-
-    function populateEmployerCandidatesFiltersFromUrl() {
-        if (!employerCandidatesForm) return;
-
-        const params = new URLSearchParams(window.location.search);
-        employerCandidatesForm.querySelectorAll('[name]').forEach(field => {
-            const value = params.get(field.name);
-            if (value !== null) {
-                field.value = value;
-            }
-        });
-    }
-
-    function syncEmployerCandidatesUrl() {
-        if (!employerCandidatesForm) return;
-
-        const params = new URLSearchParams();
-        new FormData(employerCandidatesForm).forEach((value, key) => {
-            const text = String(value).trim();
-            if (text) {
-                params.set(key, text);
-            }
+            loadAdminJobs();
         });
 
-        const query = params.toString();
-        const targetUrl = query ? `/employer/candidates?${query}` : '/employer/candidates';
-        window.history.replaceState({}, '', targetUrl);
+        loadAdminJobs();
     }
 
-    async function loadEmployerCandidates() {
-        if (!employerCandidatesForm || !employerCandidatesGrid) return;
+    // ============================================================
+    // ADMIN CANDIDATE DETAILS
+    // ============================================================
 
-        const params = new URLSearchParams(new FormData(employerCandidatesForm));
-
-        try {
-            const response = await fetch(`/api/employer/candidates?${params.toString()}`, { credentials: 'same-origin' });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) return;
-
-            const candidates = data.candidates || [];
-            const shownCount = document.querySelector('#shownCount');
-            const totalCount = document.querySelector('#totalCount');
-
-            if (shownCount) shownCount.textContent = String(candidates.length);
-            if (totalCount) totalCount.textContent = String(candidates.length);
-
-            employerCandidatesGrid.innerHTML = candidates.length
-                ? candidates.map(candidate => `
-            <a class="card" href="${employerCandidateDetailsUrl(candidate.id)}" style="display:block; text-decoration:none; color:inherit;">
-              <div class="card-title">${candidate.fullName}</div>
-              <div style="color:var(--text-muted); margin-bottom:8px;">${candidate.major}</div>
-              <div style="font-size:0.9rem;">${candidate.skills}</div>
-              <div style="margin-top:8px; font-size:0.9rem; color:var(--text-dark);">${candidate.summary || 'No profile summary provided.'}</div>
-              <div style="font-size:0.85rem; color:var(--text-muted); margin-top:8px;">${candidate.preferredLocation} • ${candidate.preferredWorkMode} • ${candidate.experienceText}</div>
-            </a>
-          `).join('')
-                : '<div class="card">No candidates found.</div>';
-        } catch {
-        }
-    }
-
-    if (employerCandidatesForm && employerCandidatesGrid) {
-        populateEmployerCandidatesFiltersFromUrl();
-        employerCandidatesForm.addEventListener('submit', e => {
-            e.preventDefault();
-            syncEmployerCandidatesUrl();
-            loadEmployerCandidates();
-        });
-        loadEmployerCandidates();
-    }
-
-    async function loadEmployerRecommendedCandidatesPage() {
-        const recommendationsGrid = document.querySelector('#recommendations-grid');
-        const recommendationsForm = document.querySelector('form[action="/employer/recommended-candidates"]');
-        if (!recommendationsGrid || !recommendationsForm) return;
-
-        const params = new URLSearchParams(window.location.search);
-        const jobIdParam = params.get('job_id');
-        const jobSelect = recommendationsForm.querySelector('[name="job_id"]');
-
-        // Determine the selected job ID and view type (specific job or overall recommendations)
-        const selectedJobId = jobIdParam || jobSelect?.value || '';
-        const isSpecificJobView = !!selectedJobId;
-
-        // Update job ID selector
-        if (jobSelect) {
-            jobSelect.value = selectedJobId;
-        }
-
-        try {
-            const recommendationsParams = new URLSearchParams();
-            if (selectedJobId) {
-                recommendationsParams.set('job_id', selectedJobId);
-            }
-
-            const [jobsResponse, recommendationsResponse, dashboardResponse] = await Promise.all([
-                fetch('/api/employer/jobs', { credentials: 'same-origin' }),
-                fetch(`/api/employer/recommendations?${recommendationsParams.toString()}`, { credentials: 'same-origin' }),
-                fetch('/api/employer/dashboard', { credentials: 'same-origin' })
-            ]);
-
-            const jobsData = await jobsResponse.json().catch(() => ({}));
-            const recommendationsData = await recommendationsResponse.json().catch(() => ({}));
-            const dashboardData = await dashboardResponse.json().catch(() => ({}));
-            if (!jobsResponse.ok || !recommendationsResponse.ok || !dashboardResponse.ok) return;
-
-            const jobs = jobsData.jobs || [];
-            const recommendations = recommendationsData.recommendations || [];
-            const isFreePlan = (dashboardData.membershipStatus || '').toLowerCase() === 'free';
-            const visibleCount = document.querySelector('#visible-count');
-            const totalCount = document.querySelector('#total-count');
-
-            if (visibleCount) visibleCount.textContent = String(recommendations.length);
-            if (totalCount) totalCount.textContent = String(recommendations.length);
-
-            // Populate job selector for filtering recommendations
-            if (jobSelect) {
-                const currentValue = jobSelect.value;
-                jobSelect.innerHTML = '<option value="">All recommended matches</option>' + jobs.map(job => `
-          <option value="${job.id}">${job.title}</option>
-        `).join('');
-                jobSelect.value = currentValue;
-            }
-
-            // Render recommendations
-            recommendationsGrid.innerHTML = recommendations.length
-                ? recommendations.map(recommendation => renderEmployerRecommendationCard(recommendation, { showMatchedJobs: !isSpecificJobView })).join('')
-                : '<div class="card">No recommended candidates found.</div>';
-        } catch {
-            recommendationsGrid.innerHTML = '<div class="card">Unable to load recommended candidates.</div>';
-        }
-
-        recommendationsForm.addEventListener('submit', e => {
-            e.preventDefault();
-            const nextParams = new URLSearchParams();
-            const jobId = recommendationsForm.querySelector('[name="job_id"]')?.value || '';
-            if (jobId) {
-                nextParams.set('job_id', jobId);
-            }
-            const query = nextParams.toString();
-            window.history.replaceState({}, '', query ? `/employer/recommended-candidates?${query}` : '/employer/recommended-candidates');
-            loadEmployerRecommendedCandidatesPage();
-        }, { once: true });
-    }
-
-    async function loadEmployerCandidateDetails() {
-        const name = document.querySelector('#candidate-name');
+    async function loadAdminCandidateDetails() {
+        const name = document.querySelector('#admin-candidate-name');
         if (!name) return;
 
         const params = new URLSearchParams(window.location.search);
         const candidateId = params.get('id');
         if (!candidateId) return;
 
-        const matchForm = document.querySelector('form[action="/employer/candidate_details"]');
-        const hiddenCandidateId = matchForm?.querySelector('input[name="id"]');
-        const jobSelect = matchForm?.querySelector('select[name="job_id"]');
-        const selectedJobId = params.get('job_id') || '';
-
-        if (hiddenCandidateId) {
-            hiddenCandidateId.value = candidateId;
-        }
-
         try {
-            const jobsResponse = fetch('/api/employer/jobs', { credentials: 'same-origin' });
-            const candidateResponse = fetch(`/api/employer/candidate?id=${encodeURIComponent(candidateId)}${selectedJobId ? `&job_id=${encodeURIComponent(selectedJobId)}` : ''}`, { credentials: 'same-origin' });
-            const [jobsResult, candidateResult] = await Promise.all([jobsResponse, candidateResponse]);
-            const jobsData = await jobsResult.json().catch(() => ({}));
-            const data = await candidateResult.json().catch(() => ({}));
-            if (!jobsResult.ok || !candidateResult.ok || !data.candidate) return;
-
-            if (jobSelect) {
-                const jobs = jobsData.jobs || [];
-                jobSelect.innerHTML = '<option value="">Select a job posting…</option>' + jobs.map(job => `
-                    <option value="${job.id}">${job.title}</option>
-                `).join('');
-                jobSelect.value = selectedJobId;
-            }
-
-            if (matchForm && !matchForm.dataset.bound) {
-                matchForm.addEventListener('submit', e => {
-                    e.preventDefault();
-                    const nextParams = new URLSearchParams();
-                    nextParams.set('id', candidateId);
-                    const selected = jobSelect?.value || '';
-                    if (selected) {
-                        nextParams.set('job_id', selected);
-                    }
-                    window.location.href = `/employer/candidate?${nextParams.toString()}`;
-                });
-                matchForm.dataset.bound = 'true';
-            }
+            const response = await fetch(`/api/admin/candidate?id=${encodeURIComponent(candidateId)}`, { credentials: 'same-origin' });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.candidate) return;
 
             const candidate = data.candidate;
             const setText = (selector, value, fallback = '') => {
@@ -1444,57 +1723,27 @@
                 if (el) el.textContent = value || fallback;
             };
 
-            setText('#candidate-name', candidate.fullName, 'Candidate');
-            setText('#candidate-summary-meta', `${candidate.major || 'Field not listed'} • ${candidate.experienceText || 'Experience not listed'}`);
-            setText('#about-text', candidate.summary, 'No candidate summary provided.');
-            setText('#education', candidate.education, 'Not specified');
-            setText('#major', candidate.major, 'Not specified');
-            setText('#experience', candidate.experienceText, 'Not specified');
-            setText('#employment-type', candidate.employmentType, 'Not specified');
-            setText('#work-mode', candidate.preferredWorkMode, 'Not specified');
-            setText('#preferred-location', candidate.preferredLocation, 'Not specified');
-            setText('#expected-salary', candidate.expectedSalary, 'Not specified');
-            setText('#contact-info', candidate.contactInfo, 'Not specified');
-            setText('#member-since', candidate.createdAt, 'Not specified');
-            setText('#work-experience', candidate.workExperience, 'No work experience provided.');
+            setText('#admin-candidate-name', candidate.fullName, 'Candidate');
+            setText('#admin-candidate-summary-meta', `${candidate.education || 'Education not listed'} · ${candidate.experienceText || 'Experience not listed'}`);
+            setText('#admin-candidate-about-text', candidate.summary, 'No summary provided.');
+            setText('#admin-candidate-work-experience', candidate.workExperience, 'No work experience listed.');
+            setText('#admin-candidate-education', candidate.education, 'Not provided');
+            setText('#admin-candidate-major', candidate.major, 'Not provided');
+            setText('#admin-candidate-experience', candidate.experienceText, 'Not provided');
+            setText('#admin-candidate-employment-type', candidate.employmentType, 'Not provided');
+            setText('#admin-candidate-work-mode', candidate.preferredWorkMode, 'Not provided');
+            setText('#admin-candidate-preferred-location', candidate.preferredLocation, 'Not provided');
+            setText('#admin-candidate-expected-salary', candidate.expectedSalary, 'Not provided');
+            setText('#admin-candidate-contact-info', candidate.contactInfo, 'Not provided');
+            setText('#admin-candidate-member-since', candidate.createdAt, 'Not provided');
+            setText('#admin-candidate-work-mode-badge', candidate.preferredWorkMode, 'Not provided');
 
-            const workModeBadge = document.querySelector('#candidate-work-mode-badge');
-            if (workModeBadge) {
-                workModeBadge.textContent = candidate.preferredWorkMode || 'Work mode not specified';
-            }
-
-            const skillsContainer = document.querySelector('#skills-container');
+            const skillsContainer = document.querySelector('#admin-candidate-skills-container');
             if (skillsContainer) {
-                const skills = (candidate.skills || '').split(',').map(skill => skill.trim()).filter(Boolean);
-                skillsContainer.innerHTML = skills.length
-                    ? skills.map(skill => `<span class="skill-tag">${skill}</span>`).join('')
-                    : '<span style="color:var(--text-muted);">No skills listed.</span>';
+                skillsContainer.innerHTML = renderSkillBadges(candidate.skills) || '<span style="color:var(--text-muted);">No skills listed.</span>';
             }
 
-            const matchScore = clampMatchScore(candidate.matchScore);
-            setText('#candidate-match-score-circle', `${matchScore}%`, '0%');
-            setText('#candidate-match-score-text', `${matchScore}%`, '0%');
-            applyScoreCircleColor('#candidate-match-score-circle', matchScore);
-            setText('#matched-job-label', candidate.matchedJobTitle ? `Best match job: ${candidate.matchedJobTitle}` : 'Best match job: Not available');
-            setText('#matched-job-summary', candidate.matchedJobTitle
-                ? 'This score compares the candidate against your highest scoring job listing.'
-                : 'Post a job to see how this candidate matches against your openings.');
-
-            const matchBar = document.querySelector('#candidate-match-score-bar');
-            if (matchBar) {
-                matchBar.style.width = `${matchScore}%`;
-            }
-            applyMatchBarColor('#candidate-match-score-bar', matchScore);
-
-            const matchHighlights = document.querySelector('#match-highlights');
-            if (matchHighlights) {
-                const reasons = Array.isArray(candidate.matchReasons) ? candidate.matchReasons : [];
-                matchHighlights.innerHTML = reasons.length
-                    ? reasons.map(reason => `<li>${reason}</li>`).join('')
-                    : '<li>No personalized match reasons available.</li>';
-            }
-
-            const portfolioLink = document.querySelector('#candidate-portfolio-link');
+            const portfolioLink = document.querySelector('#admin-candidate-portfolio-link');
             if (portfolioLink) {
                 if (candidate.portfolioUrl) {
                     portfolioLink.href = candidate.portfolioUrl;
@@ -1508,254 +1757,132 @@
     }
 
     // ============================================================
-    // EMPLOYER JOBS LIST
+    // ADMIN EMPLOYER DETAILS
     // ============================================================
-    async function loadEmployerJobs() {
-        const jobsList = document.querySelector('#jobs-list');
-        if (!jobsList) return;
+
+    async function loadAdminEmployerDetails() {
+        const companyName = document.querySelector('#admin-employer-company-name');
+        if (!companyName) return;
+
+        const params = new URLSearchParams(window.location.search);
+        const employerId = params.get('id');
+        if (!employerId) return;
 
         try {
-            const response = await fetch('/api/employer/jobs', { credentials: 'same-origin' });
+            const response = await fetch(`/api/admin/employer?id=${encodeURIComponent(employerId)}`, { credentials: 'same-origin' });
             const data = await response.json().catch(() => ({}));
-            if (!response.ok) return;
+            if (!response.ok || !data.employer) return;
 
-            const jobs = data.jobs || [];
-            const jobCount = document.querySelector('#job-count');
-            if (jobCount) jobCount.textContent = String(jobs.length);
-
-            jobsList.innerHTML = jobs.length
-                ? jobs.map(job => `
-            <div class="card">
-              <div class="card-title">${job.title}</div>
-              <div style="color:var(--text-muted); margin-bottom:8px;">${job.company}</div>
-              <div style="font-size:0.9rem; color:var(--text-muted);">${job.type} • ${job.status} • ${job.posted}</div>
-            </div>
-          `).join('')
-                : '<div class="card">No jobs posted yet.</div>';
-        } catch {
-        }
-    }
-
-    // ============================================================
-    // ADMIN DASHBOARD
-    // ============================================================
-    async function loadAdminDashboard() {
-        if (!document.querySelector('#totalUsers') || !document.querySelector('#recentUsersTable')) return;
-
-        try {
-            const response = await fetch('/api/admin/dashboard', { credentials: 'same-origin' });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) return;
-
-            const setText = (selector, value) => {
+            const employer = data.employer;
+            const setText = (selector, value, fallback = '') => {
                 const el = document.querySelector(selector);
-                if (el) el.textContent = value;
+                if (el) el.textContent = value || fallback;
             };
 
-            setText('#totalUsers', data.totalUsers ?? 0);
-            setText('#totalCandidates', data.totalCandidates ?? 0);
-            setText('#totalEmployers', data.totalEmployers ?? 0);
-            setText('#premiumUsers', data.premiumUsers ?? 0);
-            setText('#totalJobs', data.totalJobs ?? 0);
-            setText('#openJobs', data.openJobs ?? 0);
-            setText('#totalProfiles', data.totalProfiles ?? 0);
-            setText('#totalCompanies', data.totalCompanies ?? 0);
+            setText('#admin-employer-company-name', employer.companyName, employer.fullName || 'Employer');
+            setText('#admin-employer-owner-name', employer.fullName, 'Employer');
+            setText('#admin-employer-industry', employer.industry, 'Industry not provided');
+            setText('#admin-employer-company-size', employer.companySize, 'Company size not provided');
+            setText('#admin-employer-total-jobs', `${Number(employer.totalJobs || 0)} jobs posted`);
+            setText('#admin-employer-company-description', employer.companyDescription, 'No company description provided.');
+            setText('#admin-employer-email', employer.email, 'Not provided');
+            setText('#admin-employer-membership', employer.membershipStatus, 'Not provided');
+            setText('#admin-employer-company-email', employer.companyEmail, 'Not provided');
+            setText('#admin-employer-company-phone', employer.companyPhone, 'Not provided');
+            setText('#admin-employer-company-location', employer.companyLocation, 'Not provided');
+            setText('#admin-employer-created-at', employer.createdAt, 'Not provided');
+            setText('#admin-employer-website-url', employer.websiteUrl, 'Not provided');
 
-            const recentUsersTable = document.querySelector('#recentUsersTable');
-            const recentJobsTable = document.querySelector('#recentJobsTable');
-
-            if (recentUsersTable) {
-                const users = data.recentUsers || [];
-                recentUsersTable.innerHTML = users.map(user => `
-          <tr>
-            <td>${user.full_name}</td>
-            <td>${user.role}</td>
-            <td>${user.membership_status}</td>
-            <td>${user.created_at}</td>
-          </tr>
-        `).join('');
-            }
-
-            if (recentJobsTable) {
-                const jobs = data.recentJobs || [];
-                recentJobsTable.innerHTML = jobs.map(job => `
-          <tr>
-            <td>${job.title}</td>
-            <td>${job.company}</td>
-            <td>${job.status}</td>
-            <td>${job.posted}</td>
-          </tr>
-        `).join('');
-            }
-        } catch {
-        }
-    }
-
-    // ============================================================
-    // ADMIN JOBS
-    // ============================================================
-    const adminJobsForm = document.querySelector('form[action="/admin/jobs"]');
-    const adminJobsBody = document.querySelector('#jobs-table-body');
-
-    async function loadAdminJobs() {
-        if (!adminJobsForm || !adminJobsBody) return;
-
-        const params = new URLSearchParams(new FormData(adminJobsForm));
-        try {
-            const response = await fetch(`/api/admin/jobs?${params.toString()}`, { credentials: 'same-origin' });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok) return;
-
-            const jobs = data.jobs || [];
-            const totalJobs = document.querySelector('#totalJobs');
-            if (totalJobs) totalJobs.textContent = String(jobs.length);
-
-            adminJobsBody.innerHTML = jobs.length
-                ? jobs.map((job, index) => `
-            <tr>
-              <td>${index + 1}</td>
-              <td>${job.title}</td>
-              <td>${job.company}</td>
-              <td>${job.type}</td>
-              <td>${job.status}</td>
-              <td>${job.deadline}</td>
-              <td>${job.posted}</td>
-              <td><button type="button" class="btn btn-secondary btn-sm">View</button></td>
-            </tr>
-          `).join('')
-                : '<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:40px;">No jobs found.</td></tr>';
-        } catch {
-        }
-    }
-
-    if (adminJobsForm && adminJobsBody) {
-        adminJobsForm.addEventListener('submit', e => {
-            e.preventDefault();
-            loadAdminJobs();
-        });
-        loadAdminJobs();
-    }
-
-    // ============================================================
-    // EMPLOYER COMPANY PROFILE -> JSON API
-    // ============================================================
-    const companyProfileForm = document.querySelector('#company-profile-form');
-
-    async function loadCompanyProfile() {
-        if (!companyProfileForm) return;
-
-        try {
-            const response = await fetch('/api/employer/company-profile', {
-                method: 'GET',
-                credentials: 'same-origin'
-            });
-
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok || !data.profile) return;
-
-            const profile = data.profile;
-            Object.entries(profile).forEach(([key, value]) => {
-                const field = companyProfileForm.querySelector(`[name="${key}"]`);
-                if (field && value != null) {
-                    field.value = value;
+            const websiteLink = document.querySelector('#admin-employer-website-link');
+            if (websiteLink) {
+                if (employer.websiteUrl) {
+                    websiteLink.href = employer.websiteUrl;
+                    websiteLink.hidden = false;
+                } else {
+                    websiteLink.hidden = true;
                 }
-            });
-
-            const submitButton = companyProfileForm.querySelector('button[type="submit"]');
-            if (submitButton) {
-                submitButton.textContent = '💾 Save Company Profile';
             }
         } catch {
         }
     }
 
-    if (companyProfileForm) {
-        loadCompanyProfile();
+    // ============================================================
+    // ADMIN JOB DETAILS
+    // ============================================================
+    async function loadAdminJobDetails() {
+        const title = document.querySelector('#admin-job-title');
+        if (!title) return;
 
-        companyProfileForm.addEventListener('submit', async e => {
-            e.preventDefault();
+        const params = new URLSearchParams(window.location.search);
+        const jobId = params.get('id');
+        if (!jobId) return;
 
-            const successBox = document.querySelector('#success-message');
-            const errorBox = document.querySelector('#error-message');
-            const submitButton = companyProfileForm.querySelector('button[type="submit"]');
+        try {
+            const response = await fetch(`/api/admin/job?id=${encodeURIComponent(jobId)}`, { credentials: 'same-origin' });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.job) return;
 
-            if (successBox) {
-                successBox.hidden = true;
-                successBox.textContent = '';
-            }
-
-            if (errorBox) {
-                errorBox.hidden = true;
-                errorBox.textContent = '';
-            }
-
-            const payload = {
-                company_name: companyProfileForm.querySelector('[name="company_name"]')?.value.trim() || '',
-                company_email: companyProfileForm.querySelector('[name="company_email"]')?.value.trim() || '',
-                company_phone: companyProfileForm.querySelector('[name="company_phone"]')?.value.trim() || '',
-                industry: companyProfileForm.querySelector('[name="industry"]')?.value || 'Technology',
-                company_size: companyProfileForm.querySelector('[name="company_size"]')?.value || '11-50',
-                company_location: companyProfileForm.querySelector('[name="company_location"]')?.value.trim() || '',
-                company_description: companyProfileForm.querySelector('[name="company_description"]')?.value.trim() || '',
-                website_url: companyProfileForm.querySelector('[name="website_url"]')?.value.trim() || ''
+            const job = data.job;
+            const setText = (selector, value, fallback = '') => {
+                const el = document.querySelector(selector);
+                if (el) el.textContent = value || fallback;
             };
 
-            if (!payload.company_name) {
-                if (errorBox) {
-                    errorBox.textContent = 'Company name is required.';
-                    errorBox.hidden = false;
-                }
-                return;
+            setText('#admin-job-title', job.title, 'Job Title');
+            setText('#admin-company-name', job.company, 'Company');
+            setText('#admin-job-status', job.status, 'Unknown');
+            setText('#admin-job-location', `📍 ${job.location || 'Location not listed'}`);
+            setText('#admin-job-workmode', job.workMode || 'Mode not listed');
+            setText('#admin-job-type', `💼 ${job.type || 'Type not listed'}`);
+            setText('#admin-job-level', `📊 ${job.careerLevel || 'Level not listed'}`);
+            setText('#admin-job-salary', `💰 ${job.salaryRange || 'Salary not listed'}`);
+            setText('#admin-job-description', job.jobDescription, 'No job description available.');
+            setText('#admin-company-description', job.companyDescription, 'No company description available.');
+            setText('#admin-required-education', job.requiredEducation, 'Not specified');
+            setText('#admin-required-experience', job.requiredExperience ? `${job.requiredExperience} years` : 'Not specified');
+            setText('#admin-detail-job-type', job.type, 'Not specified');
+            setText('#admin-detail-career-level', job.careerLevel, 'Not specified');
+            setText('#admin-application-deadline', job.deadline, 'Not specified');
+            setText('#admin-detail-salary-range', job.salaryRange, 'Not specified');
+
+            const skillsContainer = document.querySelector('#admin-required-skills');
+            if (skillsContainer) {
+                skillsContainer.innerHTML = renderSkillBadges(job.requiredSkills) || '<span style="color:var(--text-muted);">No skills listed.</span>';
             }
 
-            try {
-                if (submitButton) submitButton.disabled = true;
-
-                const response = await fetch('/api/employer/company-profile', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'same-origin',
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await response.json().catch(() => ({}));
-
-                if (!response.ok) {
-                    if (errorBox) {
-                        errorBox.textContent = data.error || 'Failed to save company profile.';
-                        errorBox.hidden = false;
-                    }
-                    return;
+            const companyWebsiteLink = document.querySelector('#admin-company-website-link');
+            if (companyWebsiteLink) {
+                if (job.companyWebsiteUrl) {
+                    companyWebsiteLink.href = job.companyWebsiteUrl;
+                    companyWebsiteLink.hidden = false;
+                } else {
+                    companyWebsiteLink.hidden = true;
                 }
-
-                if (successBox) {
-                    successBox.textContent = 'Company profile saved successfully.';
-                    successBox.hidden = false;
-                }
-
-                window.location.href = '/employer/dashboard';
-            } catch {
-                if (errorBox) {
-                    errorBox.textContent = 'Unable to reach the server.';
-                    errorBox.hidden = false;
-                }
-            } finally {
-                if (submitButton) submitButton.disabled = false;
             }
-        });
+        } catch {
+        }
     }
 
-    loadCandidateDashboard();
-    loadCandidateMembershipPage();
-    loadCandidateJobDetails();
-    loadRecommendedJobsPage();
-    loadEmployerDashboard();
-    loadEmployerMembershipPage();
-    loadEmployerRecommendedCandidatesPage();
-    loadEmployerCandidateDetails();
-    loadEmployerJobs();
-    loadAdminDashboard();
+    runPageInitializer(window.location.pathname, {
+        '/candidate/dashboard': typeof loadCandidateDashboard === 'function' ? loadCandidateDashboard : null,
+        '/candidate/jobs': typeof loadCandidateJobs === 'function' ? loadCandidateJobs : null,
+        '/candidate/membership': typeof loadCandidateMembershipPage === 'function' ? loadCandidateMembershipPage : null,
+        '/candidate/job': typeof loadCandidateJobDetails === 'function' ? loadCandidateJobDetails : null,
+        '/candidate/recommended-jobs': typeof loadRecommendedJobsPage === 'function' ? loadRecommendedJobsPage : null,
+        '/employer/dashboard': typeof loadEmployerDashboard === 'function' ? loadEmployerDashboard : null,
+        '/employer/candidates': typeof loadEmployerCandidates === 'function' ? loadEmployerCandidates : null,
+        '/employer/membership': typeof loadEmployerMembershipPage === 'function' ? loadEmployerMembershipPage : null,
+        '/employer/recommended-candidates': typeof loadEmployerRecommendedCandidatesPage === 'function' ? loadEmployerRecommendedCandidatesPage : null,
+        '/employer/recommended_candidates': typeof loadEmployerRecommendedCandidatesPage === 'function' ? loadEmployerRecommendedCandidatesPage : null,
+        '/employer/candidate': typeof loadEmployerCandidateDetails === 'function' ? loadEmployerCandidateDetails : null,
+        '/employer/jobs': typeof loadEmployerJobs === 'function' ? loadEmployerJobs : null,
+        '/admin': typeof loadAdminDashboard === 'function' ? loadAdminDashboard : null,
+        '/admin/dashboard': typeof loadAdminDashboard === 'function' ? loadAdminDashboard : null,
+        '/admin/users': typeof loadAdminUsers === 'function' ? loadAdminUsers : null,
+        '/admin/jobs': typeof loadAdminJobs === 'function' ? loadAdminJobs : null,
+        '/admin/candidate': typeof loadAdminCandidateDetails === 'function' ? loadAdminCandidateDetails : null,
+        '/admin/employer': typeof loadAdminEmployerDetails === 'function' ? loadAdminEmployerDetails : null,
+        '/admin/job': typeof loadAdminJobDetails === 'function' ? loadAdminJobDetails : null
+    });
 
 })();

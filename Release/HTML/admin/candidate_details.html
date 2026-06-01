@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Candidate Details – TalentMatch Admin</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">✦ TalentMatch Admin</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="nav-links">
+      <a href="/admin/dashboard" class="nav-link">Dashboard</a>
+      <a href="/admin/users" class="nav-link active">Manage Users</a>
+      <a href="/admin/jobs" class="nav-link">Manage Jobs</a>
+      <a href="/logout" class="nav-link nav-danger">Logout</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div style="margin-bottom:20px;">
+      <a href="/admin/users" style="color:var(--text-muted); font-size:0.9rem;">← Back to Users</a>
+    </div>
+
+    <div class="detail-grid">
+      <div>
+        <div class="card mb-24">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+            <div>
+              <h1 style="font-size:1.8rem; margin-bottom:6px;" id="admin-candidate-name">Candidate Name</h1>
+              <div style="color:var(--text-muted); font-size:0.95rem; margin-bottom:12px;" id="admin-candidate-summary-meta">Degree · Experience</div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <span class="badge" id="admin-candidate-work-mode-badge">Hybrid</span>
+              </div>
+            </div>
+            <a href="#" target="_blank" class="btn btn-secondary btn-sm" id="admin-candidate-portfolio-link">🔗 Portfolio</a>
+          </div>
+        </div>
+
+        <div class="card mb-24">
+          <div class="card-title">👤 About</div>
+          <p style="line-height:1.8;" id="admin-candidate-about-text"></p>
+        </div>
+
+        <div class="card mb-24">
+          <div class="card-title">🛠 Skills</div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px;" id="admin-candidate-skills-container"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">💼 Work Experience</div>
+          <div style="line-height:1.8; white-space:pre-line; color:var(--text-dark);" id="admin-candidate-work-experience"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-title">📋 Profile Details</div>
+          <div class="detail-section"><h4>Education</h4><div class="detail-value" id="admin-candidate-education"></div></div>
+          <div class="detail-section"><h4>Field of Study</h4><div class="detail-value" id="admin-candidate-major"></div></div>
+          <div class="detail-section"><h4>Experience</h4><div class="detail-value" id="admin-candidate-experience"></div></div>
+          <div class="detail-section"><h4>Employment Type</h4><div class="detail-value" id="admin-candidate-employment-type"></div></div>
+          <div class="detail-section"><h4>Work Mode</h4><div class="detail-value" id="admin-candidate-work-mode"></div></div>
+          <div class="detail-section"><h4>Preferred Location</h4><div class="detail-value" id="admin-candidate-preferred-location"></div></div>
+          <div class="detail-section"><h4>Expected Salary</h4><div class="detail-value" id="admin-candidate-expected-salary"></div></div>
+          <div class="detail-section"><h4>Contact</h4><div class="detail-value" id="admin-candidate-contact-info"></div></div>
+          <div class="detail-section" style="margin-bottom:0;"><h4>Member Since</h4><div class="detail-value" id="admin-candidate-member-since"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>

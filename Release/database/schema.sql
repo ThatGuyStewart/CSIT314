@@ -183,6 +183,26 @@ FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
 
 -- ============================================================
+-- CANDIDATE APPLICATIONS TABLE
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS candidate_applications (
+    id BIGSERIAL PRIMARY KEY,
+    candidate_id BIGINT NOT NULL,
+    job_posting_id BIGINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_candidate_applications_candidate
+        FOREIGN KEY (candidate_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_candidate_applications_job
+        FOREIGN KEY (job_posting_id) REFERENCES job_postings(id) ON DELETE CASCADE,
+    CONSTRAINT uq_candidate_applications_candidate_job
+        UNIQUE (candidate_id, job_posting_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_candidate_applications_candidate_id ON candidate_applications(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_candidate_applications_job_posting_id ON candidate_applications(job_posting_id);
+
+-- ============================================================
 -- SEED DATA
 -- ============================================================
 

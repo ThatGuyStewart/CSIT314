@@ -27,17 +27,17 @@
 
     <h2 class="section-title" style="margin-bottom:20px;">Platform Statistics</h2>
     <div class="grid-4 mb-32">
-      <div class="stat-card"><div class="stat-number" id="totalUsers">0</div><div class="stat-label">Total Users</div></div>
-      <div class="stat-card"><div class="stat-number" id="totalCandidates">0</div><div class="stat-label">Candidates</div></div>
-      <div class="stat-card"><div class="stat-number" id="totalEmployers">0</div><div class="stat-label">Employers</div></div>
-      <div class="stat-card"><div class="stat-number" id="premiumUsers">0</div><div class="stat-label">Premium Members</div></div>
+      <a href="/admin/users" class="stat-card" style="display:block; text-decoration:none; color:inherit;"><div class="stat-number" id="totalUsers">0</div><div class="stat-label">Total Users</div></a>
+      <a href="/admin/users?role=candidate" class="stat-card" style="display:block; text-decoration:none; color:inherit;"><div class="stat-number" id="totalCandidates">0</div><div class="stat-label">Candidates</div></a>
+      <a href="/admin/users?role=employer" class="stat-card" style="display:block; text-decoration:none; color:inherit;"><div class="stat-number" id="totalEmployers">0</div><div class="stat-label">Employers</div></a>
+      <a href="/admin/users" class="stat-card" style="display:block; text-decoration:none; color:inherit;"><div class="stat-number" id="premiumUsers">0</div><div class="stat-label">Premium Members</div></a>
     </div>
 
     <div class="grid-4 mb-32">
-      <div class="stat-card"><div class="stat-number" id="totalJobs">0</div><div class="stat-label">Total Jobs</div></div>
-      <div class="stat-card"><div class="stat-number" id="openJobs">0</div><div class="stat-label">Open Jobs</div></div>
-      <div class="stat-card"><div class="stat-number" id="totalProfiles">0</div><div class="stat-label">Candidate Profiles</div></div>
-      <div class="stat-card"><div class="stat-number" id="totalCompanies">0</div><div class="stat-label">Company Profiles</div></div>
+      <a href="/admin/jobs" class="stat-card" style="display:block; text-decoration:none; color:inherit;"><div class="stat-number" id="totalJobs">0</div><div class="stat-label">Total Jobs</div></a>
+      <a href="/admin/jobs?status=Open" class="stat-card" style="display:block; text-decoration:none; color:inherit;"><div class="stat-number" id="openJobs">0</div><div class="stat-label">Open Jobs</div></a>
+      <a href="/admin/users?role=candidate" class="stat-card" style="display:block; text-decoration:none; color:inherit;"><div class="stat-number" id="totalProfiles">0</div><div class="stat-label">Candidate Profiles</div></a>
+      <a href="/admin/users?role=employer" class="stat-card" style="display:block; text-decoration:none; color:inherit;"><div class="stat-number" id="totalCompanies">0</div><div class="stat-label">Company Profiles</div></a>
     </div>
 
     <div class="grid-2" style="gap:28px;">
@@ -77,7 +77,6 @@
       <div style="display:flex; gap:12px; flex-wrap:wrap;">
         <a href="/admin/users" class="btn btn-primary">👥 Manage Users</a>
         <a href="/admin/jobs" class="btn btn-secondary">💼 Manage Jobs</a>
-        <a href="/setup" class="btn btn-secondary">🛠 Run Setup</a>
       </div>
     </div>
   </div>

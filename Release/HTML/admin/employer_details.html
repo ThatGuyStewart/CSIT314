@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employer Details – TalentMatch Admin</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-brand">✦ TalentMatch Admin</a>
+    <button class="nav-toggle" aria-label="Toggle navigation">☰</button>
+    <div class="nav-links">
+      <a href="/admin/dashboard" class="nav-link">Dashboard</a>
+      <a href="/admin/users" class="nav-link active">Manage Users</a>
+      <a href="/admin/jobs" class="nav-link">Manage Jobs</a>
+      <a href="/logout" class="nav-link nav-danger">Logout</a>
+    </div>
+  </nav>
+
+  <div class="page-wrapper">
+    <div style="margin-bottom:20px;">
+      <a href="/admin/users" style="color:var(--text-muted); font-size:0.9rem;">← Back to Users</a>
+    </div>
+
+    <div class="detail-grid">
+      <div>
+        <div class="card mb-24">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+            <div>
+              <h1 style="font-size:1.8rem; margin-bottom:6px;" id="admin-employer-company-name">Company Name</h1>
+              <div style="font-size:1.05rem; color:var(--text-muted); margin-bottom:12px;" id="admin-employer-owner-name">Employer Name</div>
+            </div>
+            <a href="#" target="_blank" class="btn btn-secondary btn-sm" id="admin-employer-website-link">🔗 Website</a>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:16px; margin-bottom:4px; color:var(--text-muted); font-size:0.9rem;">
+            <div id="admin-employer-industry">Industry</div>
+            <div id="admin-employer-company-size">Company Size</div>
+            <div id="admin-employer-total-jobs">0 jobs posted</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🏢 Company Description</div>
+          <p style="line-height:1.8; color:var(--text-dark); white-space:pre-line;" id="admin-employer-company-description"></p>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-title">📋 Employer Details</div>
+          <div class="detail-section"><h4>Account Email</h4><div class="detail-value" id="admin-employer-email"></div></div>
+          <div class="detail-section"><h4>Membership</h4><div class="detail-value" id="admin-employer-membership"></div></div>
+          <div class="detail-section"><h4>Company Email</h4><div class="detail-value" id="admin-employer-company-email"></div></div>
+          <div class="detail-section"><h4>Company Phone</h4><div class="detail-value" id="admin-employer-company-phone"></div></div>
+          <div class="detail-section"><h4>Location</h4><div class="detail-value" id="admin-employer-company-location"></div></div>
+          <div class="detail-section"><h4>Joined</h4><div class="detail-value" id="admin-employer-created-at"></div></div>
+          <div class="detail-section" style="margin-bottom:0;"><h4>Website URL</h4><div class="detail-value" id="admin-employer-website-url"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/js/main.js"></script>
+</body>
+</html>
