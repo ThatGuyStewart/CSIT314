@@ -42,6 +42,10 @@ body {
   min-height:  100vh;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 a {
   color:           var(--navy-primary);
   text-decoration: none;
@@ -651,6 +655,12 @@ p { margin-bottom: 0.5rem; color: var(--text-dark); }
   font-weight:   800;
   flex-shrink:   0;
   box-shadow:    0 4px 12px rgba(0,0,0,0.15);
+}
+.score-circle-sm {
+  width:      56px;
+  height:     56px;
+  font-size:  0.85rem;
+  margin-left: auto;
 }
 .rec-title {
   font-size:   1.05rem;

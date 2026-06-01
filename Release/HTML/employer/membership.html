@@ -24,19 +24,16 @@
   <div class="page-wrapper">
     <div class="page-header">
       <h1>⭐ Employer Membership</h1>
-      <span class="badge">Free</span>
+      <span class="badge" id="employer-membership-page-badge">Free</span>
     </div>
 
     <div class="card mb-32" style="border-left: 4px solid var(--navy-primary);">
       <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
         <div>
-          <div class="card-title" style="margin-bottom:4px;">Current Plan: Free</div>
-          <p style="color:var(--text-muted); margin:0;">You can view up to 10 candidate recommendations per job. Upgrade for unlimited.</p>
+          <div class="card-title" style="margin-bottom:4px;" id="employer-current-plan-title">Current Plan: Free</div>
+          <p style="color:var(--text-muted); margin:0;" id="employer-current-plan-copy">You can view up to 10 candidate recommendations. Upgrade for unlimited.</p>
         </div>
-        <form method="POST" action="membership">
-          <input type="hidden" name="action" value="upgrade">
-          <button type="submit" class="btn btn-warning btn-lg">⭐ Upgrade to Premium</button>
-        </form>
+        <button type="button" class="btn btn-warning btn-lg" id="employer-membership-primary-action" data-membership-target="premium">⭐ Upgrade to Premium</button>
       </div>
     </div>
 
@@ -53,7 +50,7 @@
           <li>Company profile</li>
           <li>Match score breakdown</li>
         </ul>
-        <div class="badge badge-open" style="width:100%; justify-content:center; padding:10px;">Current Plan</div>
+        <button type="button" class="badge badge-open" style="width:100%; justify-content:center; padding:10px; border:none; cursor:pointer;" id="employer-free-plan-marker" data-membership-target="free">Current Plan</button>
       </div>
 
       <div class="membership-card premium-card">
@@ -68,10 +65,7 @@
           <li>Full match insights &amp; skills</li>
           <li>Dedicated employer support</li>
         </ul>
-        <form method="POST" action="membership">
-          <input type="hidden" name="action" value="upgrade">
-          <button type="submit" class="btn btn-full" style="background:#fff; color:var(--navy-primary); font-weight:700;">⭐ Upgrade Now</button>
-        </form>
+        <button type="button" class="btn btn-full" style="background:#fff; color:var(--navy-primary); font-weight:700;" id="employer-premium-upgrade-button" data-membership-target="premium">⭐ Upgrade Now</button>
       </div>
     </div>
 

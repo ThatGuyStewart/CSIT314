@@ -29,7 +29,7 @@
           <p>Here's your hiring overview.</p>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
-          <span class="badge">Free</span>
+          <span class="badge" id="employer-plan-badge">Free</span>
           <a href="/employer/membership" class="btn btn-warning btn-sm">Upgrade ↑</a>
         </div>
       </div>
@@ -39,7 +39,7 @@
       <div class="stat-card"><div class="stat-number" id="activeCount">0</div><div class="stat-label">Active Job Posts</div></div>
       <div class="stat-card"><div class="stat-number" id="totalPosts">0</div><div class="stat-label">Total Posts</div></div>
       <div class="stat-card"><div class="stat-number" id="totalCandidates">0</div><div class="stat-label">Candidates Available</div></div>
-      <div class="stat-card"><div class="stat-number">10</div><div class="stat-label">Rec. Limit</div></div>
+      <div class="stat-card"><div class="stat-number" id="employer-rec-limit">10</div><div class="stat-label">Rec. Limit</div></div>
     </div>
 
     <div class="grid-2" style="gap:28px; align-items:start;">
@@ -62,10 +62,10 @@
         <div class="card">
           <div class="card-title">⭐ Membership</div>
           <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
-            <span class="badge">Free</span>
-            <span style="font-weight:600;">Free Plan</span>
+            <span class="badge" id="employer-membership-badge">Free</span>
+            <span style="font-weight:600;" id="employer-membership-name">Free Plan</span>
           </div>
-          <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:12px;">Upgrade to Premium to unlock unlimited candidate recommendations.</p>
+          <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:12px;" id="employer-membership-copy">Upgrade to Premium to unlock unlimited candidate recommendations.</p>
           <a href="/employer/membership" class="btn btn-primary btn-sm">View Membership Options</a>
         </div>
       </div>

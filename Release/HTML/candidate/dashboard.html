@@ -29,7 +29,7 @@
           <p>Here's your talent matching overview.</p>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
-          <span class="badge">Free</span>
+          <span class="badge" id="candidate-plan-badge">Free</span>
           <a href="/candidate/membership" class="btn btn-warning btn-sm">Upgrade ↑</a>
         </div>
       </div>
@@ -39,7 +39,7 @@
       <div class="stat-card"><div class="stat-number" id="recommendedCount">0</div><div class="stat-label">Recommended Jobs</div></div>
       <div class="stat-card"><div class="stat-number" id="profileComplete">0%</div><div class="stat-label">Profile Complete</div></div>
       <div class="stat-card"><div class="stat-number" id="jobCount">0</div><div class="stat-label">Open Positions</div></div>
-      <div class="stat-card"><div class="stat-number">10</div><div class="stat-label">Rec. Limit</div></div>
+      <div class="stat-card"><div class="stat-number" id="candidate-rec-limit">10</div><div class="stat-label">Rec. Limit</div></div>
     </div>
 
     <div class="grid-2" style="gap:28px; align-items:start;">
@@ -71,10 +71,10 @@
         <div class="card">
           <div class="card-title">⭐ Membership Status</div>
           <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-            <span class="badge">Free</span>
-            <span style="font-weight:600; font-size:1.05rem;">Free Plan</span>
+            <span class="badge" id="candidate-membership-badge">Free</span>
+            <span style="font-weight:600; font-size:1.05rem;" id="candidate-membership-name">Free Plan</span>
           </div>
-          <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:16px;">
+          <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:16px;" id="candidate-membership-copy">
             You are on the <strong>Free</strong> plan. You can view up to <strong>10</strong> job recommendations.
           </p>
           <a href="/candidate/membership" class="btn btn-primary btn-sm">View Membership Options</a>

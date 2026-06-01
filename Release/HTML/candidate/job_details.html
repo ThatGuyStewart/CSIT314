@@ -75,14 +75,14 @@
         <div class="card mb-24" style="border: 2px solid var(--border);">
           <div class="card-title">🎯 Your Match Score</div>
           <div style="display:flex; align-items:center; gap:16px; margin-bottom:16px;">
-            <div class="score-circle">0%</div>
+            <div class="score-circle" id="match-score-circle">0%</div>
             <div>
-              <div style="font-size:1.4rem; font-weight:800; color:var(--navy-primary);">0%</div>
+            <div style="font-size:1.4rem; font-weight:800; color:var(--navy-primary);" id="match-score-text">0%</div>
               <div style="font-size:0.85rem; color:var(--text-muted);">Match</div>
             </div>
           </div>
           <div class="match-bar-wrap">
-            <div class="match-bar" style="width:0%;"></div>
+            <div class="match-bar" id="match-score-bar" style="width:0%;"></div>
           </div>
           <div style="margin-top:16px;">
             <div style="font-size:0.85rem; font-weight:600; color:var(--navy-primary); margin-bottom:8px;">Why you matched:</div>

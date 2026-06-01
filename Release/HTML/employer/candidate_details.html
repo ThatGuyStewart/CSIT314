@@ -36,10 +36,10 @@
                 Degree · Experience
               </div>
               <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                <span class="badge">Hybrid</span>
+                  <span class="badge" id="candidate-work-mode-badge">Hybrid</span>
               </div>
             </div>
-            <a href="#" target="_blank" class="btn btn-secondary btn-sm">🔗 Portfolio</a>
+              <a href="#" target="_blank" class="btn btn-secondary btn-sm" id="candidate-portfolio-link">🔗 Portfolio</a>
           </div>
         </div>
 
@@ -73,15 +73,16 @@
       <div>
         <div class="card mb-24" style="border:2px solid var(--border);">
           <div class="card-title">🎯 Match Score</div>
+        <div style="font-size:0.95rem; color:var(--text-muted); margin-bottom:12px;" id="matched-job-label">Best match job: Not available</div>
           <div style="display:flex; align-items:center; gap:16px; margin-bottom:16px;">
-            <div class="score-circle">0%</div>
+            <div class="score-circle" id="candidate-match-score-circle">0%</div>
             <div>
-              <div style="font-size:1.4rem; font-weight:800; color:var(--navy-primary);">0%</div>
+            <div style="font-size:1.4rem; font-weight:800; color:var(--navy-primary);" id="candidate-match-score-text">0%</div>
               <div style="font-size:0.85rem; color:var(--text-muted);">Match</div>
             </div>
           </div>
           <div class="match-bar-wrap">
-            <div class="match-bar" style="width:0%;"></div>
+            <div class="match-bar" id="candidate-match-score-bar" style="width:0%;"></div>
           </div>
           <div style="margin-top:16px;">
             <div style="font-size:0.85rem; font-weight:600; color:var(--navy-primary); margin-bottom:8px;">Match highlights:</div>
