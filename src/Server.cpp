@@ -1,5 +1,4 @@
 #include "Server.h"
-#include "AccountRole.h"
 #include <algorithm>
 #include <random>
 #include <chrono>
@@ -221,8 +220,7 @@ void Server::handleApiLogin(const httplib::Request& req, httplib::Response& res)
 			}
 
 			const std::string role = m_service.getAccountRole(user).value_or("");
-			const AccountRole accountRole = accountRoleFromString(role);
-			if (accountRole == AccountRole::Unknown)
+			if (role != "admin" && role != "employer" && role != "candidate")
 			{
 				res.status = 403;
 				res.set_content(R"({"error":"invalid account role"})", "application/json");
@@ -230,11 +228,11 @@ void Server::handleApiLogin(const httplib::Request& req, httplib::Response& res)
 			}
 
 			std::string redirectTo = "/candidate/dashboard";
-			if (accountRole == AccountRole::Admin)
+			if (role == "admin")
 			{
 				redirectTo = "/admin";
 			}
-			else if (accountRole == AccountRole::Employer)
+			else if (role == "employer")
 			{
 				redirectTo = "/employer/dashboard";
 			}
@@ -1122,7 +1120,7 @@ void Server::handleWebsocketMessage(httplib::ws::WebSocket& ws, const std::strin
 				}
 
 				const std::string role = m_service.getAccountRole(user).value_or("");
-				if (accountRoleFromString(role) == AccountRole::Unknown)
+				if (role != "admin" && role != "employer" && role != "candidate")
 				{
 					nlohmann::json reply =
 					{
