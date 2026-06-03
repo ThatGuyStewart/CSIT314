@@ -733,14 +733,11 @@
         membershipBadge.textContent = formatMembershipStatus(membershipStatus);
       }
 
-      if (!selectedJobId) {
-        if (totalCountEl) totalCountEl.textContent = '0';
-        if (visibleCountEl) visibleCountEl.textContent = '0';
-        grid.innerHTML = '<div class="card">Select a job posting to view matched candidates.</div>';
-        return;
-      }
+        const recommendationsUrl = selectedJobId
+            ? `/api/employer/recommendations?job_id=${encodeURIComponent(selectedJobId)}`
+            : '/api/employer/recommendations';
 
-      const response = await fetch(`/api/employer/recommendations?job_id=${encodeURIComponent(selectedJobId)}`, { credentials: 'same-origin' });
+          const response = await fetch(recommendationsUrl, { credentials: 'same-origin' });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         grid.innerHTML = '<div class="card">Unable to load recommended candidates.</div>';
@@ -752,8 +749,10 @@
       if (visibleCountEl) visibleCountEl.textContent = String(candidates.length);
 
       grid.innerHTML = candidates.length
-        ? candidates.map(candidate => renderEmployerRecommendationCard(candidate, { showMatchedJobs: false })).join('')
-        : '<div class="card">No matched candidates found for this job.</div>';
+            ? candidates.map(candidate => renderEmployerRecommendationCard(candidate, { showMatchedJobs: !selectedJobId })).join('')
+            : (selectedJobId
+                ? '<div class="card">No matched candidates found for this job.</div>'
+                : '<div class="card">No recommended candidates available yet.</div>');
     } catch {
       grid.innerHTML = '<div class="card">Unable to load recommended candidates.</div>';
     }
@@ -892,6 +891,7 @@
       if (!response.ok || !data.candidate) return;
 
       const candidate = data.candidate;
+        const matchLabelPrefix = selectedJobId ? 'Match score for' : 'Best match job';
       const setText = (selector, value, fallback = '') => {
         const el = document.querySelector(selector);
         if (el) el.textContent = value || fallback;
@@ -911,7 +911,7 @@
       setText('#contact-info', candidate.contactInfo, 'Not provided');
       setText('#member-since', candidate.createdAt, 'Not provided');
       setText('#candidate-work-mode-badge', candidate.preferredWorkMode, 'Not provided');
-      setText('#matched-job-label', candidate.matchedJobTitle ? `Best match job: ${candidate.matchedJobTitle}` : 'Best match job: Not available');
+          setText('#matched-job-label', candidate.matchedJobTitle ? `${matchLabelPrefix}: ${candidate.matchedJobTitle}` : `${matchLabelPrefix}: Not available`);
 
       const skillsContainer = document.querySelector('#skills-container');
       if (skillsContainer) {
