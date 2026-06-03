@@ -4,6 +4,12 @@
 #include <string>
 #include <vector>
 
+/*
+ScoringLogic class provides methods for evaluating and scoring job and candidate matches.
+It includes functions for calculating keyword relevance, skill alignment, field alignment, and overall match scores.
+This class is used by the DataService class to generate recommendations and match evaluations for candidates and employers.
+*/
+
 class ScoringLogic
 {
 public:

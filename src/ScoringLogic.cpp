@@ -11,6 +11,10 @@
 
 namespace
 {
+	// Enums to represent the relationship between candidate and job domains, role families, and the audience for match reasons. These enums help categorize the strength of matches and the relevance of certain criteria in the scoring process.
+	enum class DomainRelationship { None, Related, Adjacent };
+	enum class RoleFamilyRelationship { None, Related, Adjacent };
+	enum class MatchReasonAudience { Candidate, Employer };
 	enum class EducationLevel
 	{
 		Any,
@@ -21,6 +25,24 @@ namespace
 		Other
 	};
 
+	// Map to hold domain signals for different categories (e.g., job title, skills) during the scoring process, allowing for detailed analysis of which aspects of a candidate's profile contributed to their match score
+	using DomainSignalMap = std::unordered_map<std::string, DomainSignal>;
+
+	// Structure to hold expanded search queries for job searches, including separate lists for phrase queries (which contain multiple words) and token queries (which are single words). This allows for more flexible and comprehensive matching of job search keywords against job titles and descriptions.
+	struct ExpandedJobSearchQueries
+	{
+		std::vector<std::string> phraseQueries;
+		std::vector<std::string> tokenQueries;
+	};
+
+	// Structure to hold information about how well a specific domain (e.g., job title, skills) matches the search criteria, including the count of matched terms and the specific terms that were matched
+	struct DomainSignal
+	{
+		int matchCount = 0;
+		std::vector<std::string> matchedTerms;
+	};
+
+	// Normalize education text by converting to lowercase and removing non-alphanumeric characters, while preserving spaces for better matching
 	std::string normalizeEducationText(const std::string& value)
 	{
 		std::string normalized;
@@ -41,6 +63,7 @@ namespace
 		return normalized;
 	}
 
+	// Convert normalized education text to an EducationLevel enum value based on common keywords and phrases
 	EducationLevel educationLevelFromString(const std::string& value)
 	{
 		const std::string normalized = normalizeEducationText(value);
@@ -69,6 +92,7 @@ namespace
 		return EducationLevel::Other;
 	}
 
+	// Assign a rank to each education level for comparison purposes, with higher ranks indicating higher levels of education
 	int educationLevelRank(EducationLevel level)
 	{
 		switch (level)
@@ -86,14 +110,7 @@ namespace
 		}
 	}
 
-	struct DomainSignal
-	{
-		int matchCount = 0;
-		std::vector<std::string> matchedTerms;
-	};
-
-	using DomainSignalMap = std::unordered_map<std::string, DomainSignal>;
-
+	// Normalize search text by converting to lowercase, removing non-alphanumeric characters (except for '+' and '#'), and collapsing multiple spaces into a single space. This helps improve matching accuracy by standardizing the format of the text.
 	std::string normalizeSearchText(const std::string& value)
 	{
 		std::string normalized;
@@ -121,7 +138,8 @@ namespace
 
 		return normalized;
 	}
-
+	
+	// Public wrapper for normalizing text, which currently uses the same normalization logic as normalizeSearchText but can be modified in the future if needed without affecting the internal implementation
 	std::string normalizeText(const std::string& value)
 	{
 		return normalizeSearchText(value);
@@ -147,6 +165,7 @@ namespace
 		return paddedText.find(paddedKeyword) != std::string::npos;
 	}
 
+	// Calculate a fuzzy matching score between a candidate string and a query string using the Zadeh library. The score is based on the similarity of the two strings, with higher scores indicating a closer match. If either string is empty, a score of 0 is returned.
 	float getFuzzyScore(const std::string& candidate, const std::string& query)
 	{
 		if (candidate.empty() || query.empty())
@@ -158,6 +177,7 @@ namespace
 		return zadeh::scorer_score(candidate, query, options);
 	}
 
+	// Append a normalized version of the value to the list of values if it is not already present. This helps ensure that the list of values contains unique, normalized entries for better matching and scoring.
 	void appendUniqueNormalized(std::vector<std::string>& values, const std::string& value)
 	{
 		const std::string normalized = normalizeSearchText(value);
@@ -167,12 +187,7 @@ namespace
 		}
 	}
 
-	struct ExpandedJobSearchQueries
-	{
-		std::vector<std::string> phraseQueries;
-		std::vector<std::string> tokenQueries;
-	};
-
+	// Expand a job search keyword into multiple related queries, including both phrase queries (which contain multiple words) and token queries (which are single words). This allows for more comprehensive matching of job search keywords against job titles and descriptions, improving the relevance of search results.
 	ExpandedJobSearchQueries expandJobSearchQueries(const std::string& keyword)
 	{
 		ExpandedJobSearchQueries queries;
@@ -229,6 +244,7 @@ namespace
 		return queries;
 	}
 
+	// Split the normalized search text into individual terms (tokens) based on spaces, allowing for more granular matching of search queries against candidate profiles and job descriptions. This helps improve the relevance of search results by considering each term separately.
 	std::vector<std::string> splitSearchTerms(const std::string& value)
 	{
 		std::vector<std::string> terms;
@@ -255,6 +271,7 @@ namespace
 		return terms;
 	}
 
+	// Check if the normalized search text contains the specified term as a whole word, rather than as part of another word. This helps improve the accuracy of search results by ensuring that matches are based on complete terms rather than partial matches.
 	bool containsWholeSearchTerm(const std::string& text, const std::string& term)
 	{
 		for (const auto& token : splitSearchTerms(text))
@@ -268,6 +285,7 @@ namespace
 		return false;
 	}
 
+	// Calculate the edit distance (Levenshtein distance) between two strings, which is the minimum number of single-character edits (insertions, deletions, substitutions) required to change one string into the other. This is used for approximate matching of search terms against candidate profiles and job descriptions.
 	size_t getEditDistance(const std::string& left, const std::string& right)
 	{
 		std::vector<size_t> previous(right.size() + 1);
@@ -295,6 +313,7 @@ namespace
 		return previous[right.size()];
 	}
 
+	// Check if two tokens approximately match each other based on their edit distance, allowing for minor typos or variations in the search terms. The maximum allowed edit distance is determined based on the length of the tokens, with longer tokens allowing for more edits.
 	bool isApproximateTokenMatch(const std::string& textToken, const std::string& queryToken)
 	{
 		if (textToken.empty() || queryToken.empty())
@@ -326,6 +345,7 @@ namespace
 		return getEditDistance(textToken, queryToken) <= maxDistance;
 	}
 
+	// Check if the normalized search text contains a term that approximately matches the specified term, allowing for minor typos or variations in the search terms. This helps improve the relevance of search results by considering approximate matches in addition to exact matches.
 	bool containsApproximateWholeSearchTerm(const std::string& text, const std::string& term)
 	{
 		for (const auto& token : splitSearchTerms(text))
@@ -339,6 +359,7 @@ namespace
 		return false;
 	}
 
+	// Check if a candidate card has a keyword phrase match against the query, by checking if any of the candidate's relevant fields (full name, major, skills, summary, work experience, education) contain the query as a keyword term. This is used to determine if a candidate should be included in search results based on the presence of the search keyword in their profile.
 	bool hasCandidateKeywordPhraseMatch(const S_CandidateCard& candidate, const std::string& query)
 	{
 		return containsKeywordTerm(candidate.fullName, query)
@@ -349,6 +370,7 @@ namespace
 			|| containsKeywordTerm(candidate.education, query);
 	}
 
+	// Check if a candidate card has a keyword token match against the query, by checking if any of the candidate's relevant fields (full name, major, skills, summary, work experience, education) contain the query as either a whole search term or an approximate whole search term. This allows for more flexible matching of search keywords against candidate profiles, improving the relevance of search results.
 	bool hasCandidateKeywordTokenMatch(const S_CandidateCard& candidate, const std::string& query)
 	{
 		return containsWholeSearchTerm(candidate.fullName, query)
@@ -362,6 +384,7 @@ namespace
 			|| containsApproximateWholeSearchTerm(candidate.skills, query);
 	}
 
+	// Check if a candidate card has a skills phrase match against the query, by checking if any of the candidate's relevant fields (skills, major, summary) contain the query as a keyword term. This is used to determine if a candidate should be included in search results based on the presence of the search keyword in their skills or related fields.
 	bool hasCandidateSkillsPhraseMatch(const S_CandidateCard& candidate, const std::string& query)
 	{
 		return containsKeywordTerm(candidate.skills, query)
@@ -369,6 +392,7 @@ namespace
 			|| containsKeywordTerm(candidate.summary, query);
 	}
 
+	// Check if a candidate card has a skills token match against the query, by checking if any of the candidate's relevant fields (skills, major, summary) contain the query as either a whole search term or an approximate whole search term. This allows for more flexible matching of search keywords against candidate profiles, improving the relevance of search results based on skills and related fields.
 	bool hasCandidateSkillsTokenMatch(const S_CandidateCard& candidate, const std::string& query)
 	{
 		return containsWholeSearchTerm(candidate.skills, query)
@@ -378,6 +402,7 @@ namespace
 			|| containsApproximateWholeSearchTerm(candidate.major, query);
 	}
 
+	// Append normalized versions of the specified phrases to the list of tokens if they are present in the source text as keyword terms. This helps ensure that important multi-word phrases are included in the list of tokens for matching and scoring purposes, improving the relevance of search results.
 	void appendPhraseTokens(std::vector<std::string>& tokens, const std::string& source, std::initializer_list<const char*> phrases)
 	{
 		for (const auto* phrase : phrases)
@@ -390,6 +415,7 @@ namespace
 		}
 	}
 
+	// Split the normalized search text into individual tokens based on spaces, while also checking for the presence of important multi-word phrases and including them as tokens if they are found. This allows for more comprehensive matching of search queries against candidate profiles and job descriptions, improving the relevance of search results.
 	std::vector<std::string> splitTerms(const std::string& value)
 	{
 		std::vector<std::string> tokens;
@@ -453,6 +479,7 @@ namespace
 		return tokens;
 	}
 
+	// Append a normalized version of the value to the list of tokens if it is not already present, ensuring that the list of tokens contains unique entries for better matching and scoring.
 	void appendUniqueToken(std::vector<std::string>& tokens, const std::string& value)
 	{
 		if (!value.empty() && std::find(tokens.begin(), tokens.end(), value) == tokens.end())
@@ -461,6 +488,7 @@ namespace
 		}
 	}
 
+	// Check if the list of tokens contains a normalized version of the specified value, allowing for more flexible matching of search queries against candidate profiles and job descriptions. This helps improve the relevance of search results by considering normalized versions of search terms.
 	bool containsNormalizedToken(const std::vector<std::string>& tokens, const char* value)
 	{
 		const std::string normalized = normalizeText(value);
@@ -475,6 +503,7 @@ namespace
 		return false;
 	}
 
+	// Check if any of the specified trigger phrases are present in the list of tokens, and if so, append the corresponding alias phrases to the list of tokens. This allows for the expansion of search queries based on the presence of certain key terms, improving the relevance of search results by considering related terms and phrases.
 	void addSemanticGroup(std::vector<std::string>& tokens, std::initializer_list<const char*> triggers, std::initializer_list<const char*> aliases)
 	{
 		for (const auto* trigger : triggers)
@@ -490,6 +519,7 @@ namespace
 		}
 	}
 
+	// Check if any of the specified trigger phrases are present in the list of tokens, and if so, append the corresponding alias phrases to the list of tokens. This is similar to addSemanticGroup but operates on a map of domain signals, allowing for more detailed tracking of which domains are relevant based on the presence of certain key terms.
 	void addDomainSignal(DomainSignalMap& signals, const std::string& domain, const std::vector<std::string>& tokens, std::initializer_list<const char*> needles)
 	{
 		for (const auto* needle : needles)
@@ -508,6 +538,7 @@ namespace
 		}
 	}
 
+	// Collect domain signals based on the presence of specific keywords in the list of tokens, allowing for the identification of relevant domains (e.g., finance, healthcare, cybersecurity) based on the candidate's profile and the search criteria. This helps improve the relevance of search results by considering which domains are most relevant to the candidate's profile and the search query.
 	DomainSignalMap collectDomainSignals(const std::vector<std::string>& tokens)
 	{
 		DomainSignalMap signals;
@@ -526,6 +557,7 @@ namespace
 		return signals;
 	}
 
+	// Collect domain signals specifically for role family classification, based on the presence of specific keywords in the list of tokens. This allows for the identification of relevant role families (e.g., software engineering, data science, marketing) based on the candidate's profile and the search criteria, improving the relevance of search results by considering which role families are most relevant to the candidate's profile and the search query.
 	DomainSignalMap collectRoleFamilySignals(const std::vector<std::string>& tokens)
 	{
 		DomainSignalMap signals;
@@ -546,6 +578,7 @@ namespace
 		return signals;
 	}
 
+	// Determine the dominant domain based on the collected domain signals, by identifying which domain has the highest match count. This allows for the classification of candidates into specific domains or role families based on the presence of relevant keywords in their profiles, improving the relevance of search results and enabling more targeted candidate recommendations.
 	std::string getDominantDomain(const DomainSignalMap& signals)
 	{
 		std::string bestDomain;
@@ -561,12 +594,14 @@ namespace
 		return bestDomain;
 	}
 
+	// Get the count of matched signals for a specific domain from the domain signal map, allowing for the quantification of how strongly a candidate's profile matches a particular domain or role family based on the presence of relevant keywords.
 	int getDomainSignalCount(const DomainSignalMap& signals, const std::string& domain)
 	{
 		auto it = signals.find(domain);
 		return it == signals.end() ? 0 : it->second.matchCount;
 	}
 
+	// Get the list of matched terms for a specific domain from the domain signal map, allowing for the identification of which specific keywords contributed to the match for a particular domain or role family.
 	std::vector<std::string> getSemanticConceptTokens(const std::vector<std::string>& rawTokens)
 	{
 		auto tokens = rawTokens;
@@ -588,6 +623,7 @@ namespace
 		return tokens;
 	}
 
+	// Check if two tokens match each other, either by being exactly the same or by one being a substring of the other (for tokens of length 4 or more). This allows for flexible matching of related terms and concepts, improving the relevance of search results by considering semantic similarities between tokens.
 	bool tokensMatch(const std::string& left, const std::string& right)
 	{
 		if (left == right)
@@ -601,6 +637,7 @@ namespace
 		return left.find(right) != std::string::npos || right.find(left) != std::string::npos;
 	}
 
+	// Calculate the semantic coverage ratio between a source string and a target string, by comparing the semantic concept tokens extracted from both strings and determining how many of the target tokens are matched by the source tokens. This provides a measure of how well the source string covers the concepts present in the target string, which can be used for scoring and ranking candidates based on their relevance to a job description or search query.
 	float getSemanticCoverageRatio(const std::string& source, const std::string& target)
 	{
 		auto sourceTokens = getSemanticConceptTokens(splitTerms(source));
@@ -624,6 +661,7 @@ namespace
 		return static_cast<float>(matchedTokens) / static_cast<float>(targetTokens.size());
 	}
 
+	// Check if the list of tokens contains any of the specified needles, allowing for flexible matching of search queries against candidate profiles and job descriptions. This helps improve the relevance of search results by considering multiple related terms and phrases.
 	bool containsAnyToken(const std::vector<std::string>& haystack, std::initializer_list<const char*> needles)
 	{
 		for (const auto* needle : needles)
@@ -639,6 +677,7 @@ namespace
 		}
 		return false;
 	}
+
 
 	std::string detectCandidateDomain(const S_CandidateProfile& candidate)
 	{
@@ -660,10 +699,8 @@ namespace
 		return getDominantDomain(collectRoleFamilySignals(splitTerms(job.title + " " + job.requiredSkills + " " + job.jobDescription)));
 	}
 
-	enum class DomainRelationship { None, Related, Adjacent };
-	enum class RoleFamilyRelationship { None, Related, Adjacent };
-	enum class MatchReasonAudience { Candidate, Employer };
 
+	// Determine the relationship between two domains based on predefined rules, allowing for the classification of how closely related two domains are (e.g., adjacent, related, or none). This can be used to adjust scoring and ranking of candidates based on how closely their detected domain matches the domain of the job description.
 	DomainRelationship getDomainRelationship(const std::string& leftDomain, const std::string& rightDomain)
 	{
 		if (leftDomain.empty() || rightDomain.empty() || leftDomain == rightDomain) return DomainRelationship::None;
@@ -672,6 +709,7 @@ namespace
 		return DomainRelationship::None;
 	}
 
+	// Determine the relationship between two role families based on predefined rules, allowing for the classification of how closely related two role families are (e.g., adjacent, related, or none). This can be used to adjust scoring and ranking of candidates based on how closely their detected role family matches the role family of the job description.
 	RoleFamilyRelationship getRoleFamilyRelationship(const std::string& leftFamily, const std::string& rightFamily)
 	{
 		if (leftFamily.empty() || rightFamily.empty() || leftFamily == rightFamily) return RoleFamilyRelationship::None;
@@ -680,6 +718,7 @@ namespace
 		return RoleFamilyRelationship::None;
 	}
 
+	// Calculate a coverage lane score based on the coverage ratio, minimum coverage threshold, full score coverage threshold, and maximum score. This allows for the scoring of candidates based on how well their profiles cover the relevant concepts in the job description, with a smooth scaling of scores between the minimum and full coverage thresholds.
 	float getCoverageLaneScore(float coverage, float minimumCoverage, float fullScoreCoverage, float maxScore)
 	{
 		if (coverage < minimumCoverage) return 0.0f;
@@ -687,6 +726,7 @@ namespace
 		return maxScore * ((coverage - minimumCoverage) / (fullScoreCoverage - minimumCoverage));
 	}
 
+	// Parse a numeric value from a string by extracting digits and decimal points, allowing for the conversion of strings that may contain non-numeric characters into a usable numeric format. This can be used for interpreting salary ranges, years of experience, or other numeric criteria from candidate profiles and job descriptions.
 	double parseNumericValue(const std::string& value)
 	{
 		std::string digits;
@@ -700,6 +740,7 @@ namespace
 		catch (...) { return 0.0; }
 	}
 
+	// Calculate the coverage ratio between a source string and a target string, by comparing the tokens extracted from both strings and determining how many of the target tokens are matched by the source tokens. This provides a measure of how well the source string covers the concepts present in the target string, which can be used for scoring and ranking candidates based on their relevance to a job description or search query.
 	float getCoverageRatio(const std::string& source, const std::string& target)
 	{
 		const auto sourceTokens = splitTerms(source);
@@ -720,6 +761,7 @@ namespace
 		return static_cast<float>(matchedTokens) / static_cast<float>(targetTokens.size());
 	}
 
+	// Calculate a domain alignment score between a candidate profile and a job card, based on the detected domains and role families, the semantic overlap of their relevant fields, and the strength of domain signals. This allows for a nuanced scoring of how well a candidate's profile aligns with the domain and role family of a job description, improving the relevance of search results and candidate recommendations.
 	float getDomainAlignmentScore(const S_CandidateProfile& candidate, const S_JobCard& job)
 	{
 		const DomainSignalMap candidateSignals = collectDomainSignals(splitTerms(candidate.major + " " + candidate.skills + " " + candidate.summary + " " + candidate.workExperience));
@@ -759,12 +801,14 @@ namespace
 		return -55.0f;
 	}
 
+	// Calculate a work mode score between a candidate profile and a job card, based on the candidate's preferred work mode and the job's work mode. This allows for scoring of candidates based on their alignment with the work mode requirements of the job description, improving the relevance of search results and candidate recommendations.
 	float getWorkModeScore(const S_CandidateProfile& candidate, const S_JobCard& job)
 	{
 		if (candidate.preferredWorkMode.empty() || job.workMode.empty()) return 0.0f;
 		return normalizeText(candidate.preferredWorkMode) == normalizeText(job.workMode) ? 4.0f : 0.0f;
 	}
 
+	// Calculate a location score between a candidate profile and a job card, based on the candidate's preferred location and the job's location. This allows for scoring of candidates based on their alignment with the location requirements of the job description, improving the relevance of search results and candidate recommendations.
 	float getLocationScore(const S_CandidateProfile& candidate, const S_JobCard& job)
 	{
 		if (candidate.preferredLocation.empty() || job.location.empty()) return 0.0f;
@@ -772,6 +816,7 @@ namespace
 		return coverage >= 0.85f ? 4.0f : 4.0f * coverage;
 	}
 
+	// Calculate an education score between a candidate profile and a job card, based on the candidate's education level and the job's required education level. This allows for scoring of candidates based on their alignment with the education requirements of the job description, improving the relevance of search results and candidate recommendations.
 	float getEducationScore(const S_CandidateProfile& candidate, const S_JobCard& job)
 	{
 		const int requiredRank = educationLevelRank(educationLevelFromString(job.requiredEducation));
@@ -780,6 +825,7 @@ namespace
 		return candidateRank >= requiredRank ? 3.0f : 0.0f;
 	}
 
+	// Calculate an experience score between a candidate profile and a job card, based on the candidate's years of experience and the job's required years of experience. This allows for scoring of candidates based on their alignment with the experience requirements of the job description, improving the relevance of search results and candidate recommendations.
 	float getExperienceScore(const S_CandidateProfile& candidate, const S_JobCard& job)
 	{
 		if (job.requiredExperience <= 0) return 3.0f;
@@ -788,6 +834,7 @@ namespace
 		return 3.0f * (static_cast<float>(candidate.yearsExperience) / static_cast<float>(job.requiredExperience));
 	}
 
+	// Calculate a salary fit score between a candidate profile and a job card, based on the candidate's expected salary and the job's salary range. This allows for scoring of candidates based on their alignment with the salary requirements of the job description, improving the relevance of search results and candidate recommendations.
 	float getSalaryFitScore(const S_CandidateProfile& candidate, const S_JobCard& job)
 	{
 		const double expectedSalary = parseNumericValue(candidate.expectedSalary);
@@ -804,11 +851,13 @@ namespace
 		return expectedSalary >= salaryMin ? 5.0f : static_cast<float>(5.0 * (expectedSalary / salaryMin));
 	}
 
+	// Format a match reason string with a category, tier, and message, allowing for the generation of user-friendly explanations for why a candidate matches or does not match a job description based on specific criteria. This can be used to provide feedback to employers and candidates about the strengths and weaknesses of a match.
 	std::string formatTieredReason(const std::string& category, const char* tier, const std::string& message)
 	{
 		return category + " - " + tier + ": " + message;
 	}
 
+	// Build a list of match reasons for a candidate and a job, based on various scoring criteria and the specified audience (employer or candidate). This allows for the generation of detailed explanations for why a candidate matches or does not match a job description, tailored to the perspective of either the employer or the candidate.
 	std::vector<std::string> buildMatchReasons(const S_CandidateProfile& candidate, const S_JobCard& job, MatchReasonAudience audience)
 	{
 		std::vector<std::string> reasons;
@@ -853,6 +902,7 @@ namespace
 		return reasons;
 	}
 
+	// Convert a candidate card to a candidate profile by mapping the relevant fields, allowing for the use of a more detailed candidate profile structure in scoring and matching logic while still being able to accept input in the form of a simpler candidate card.
 	S_CandidateProfile toCandidateProfile(const S_CandidateCard& candidate)
 	{
 		S_CandidateProfile profile;
@@ -872,6 +922,7 @@ namespace
 	}
 }
 
+// Calculate a keyword relevance score for a job card based on the presence of the keyword in various fields of the job card, as well as fuzzy matching scores. This allows for scoring of how well a job card matches a search query based on the presence and relevance of the search terms in key fields of the job description.
 float ScoringLogic::GetJobKeywordScore(const S_JobCard& job, const std::string& keyword)
 {
 	float score = 0.0f;
@@ -907,6 +958,7 @@ float ScoringLogic::GetJobKeywordScore(const S_JobCard& job, const std::string& 
 	return score;
 }
 
+// Check if a job card has a fuzzy keyword match for a given search query, by checking for the presence of the keyword in various fields of the job card and allowing for fuzzy matching. This allows for a flexible determination of whether a job card is relevant to a search query, even if the query does not exactly match the text in the job description.
 bool ScoringLogic::HasFuzzyKeywordMatch(const S_JobCard& job, const std::string& keyword)
 {
 	if (keyword.empty()) return true;
@@ -939,6 +991,7 @@ bool ScoringLogic::HasFuzzyKeywordMatch(const S_JobCard& job, const std::string&
 	return false;
 }
 
+// Calculate a search relevance score for a user summary based on the presence of the search query in various fields of the user summary, as well as fuzzy matching scores. This allows for scoring of how well a user summary matches a search query based on the presence and relevance of the search terms in key fields of the user's profile.
 float ScoringLogic::GetUserSearchScore(const S_UserSummary& user, const std::string& query)
 {
 	const std::string normalizedQuery = normalizeSearchText(query);
@@ -972,6 +1025,7 @@ float ScoringLogic::GetUserSearchScore(const S_UserSummary& user, const std::str
 	return score;
 }
 
+// Calculate a search relevance score for a candidate card based on the presence of the search query and skills in various fields of the candidate card, as well as fuzzy matching scores. This allows for scoring of how well a candidate card matches a search query based on the presence and relevance of the search terms in key fields of the candidate's profile.
 float ScoringLogic::GetCandidateSearchScore(const S_CandidateCard& candidate, const std::string& keyword, const std::string& skills)
 {
 	float score = 0.0f;
@@ -1046,6 +1100,7 @@ float ScoringLogic::GetCandidateSearchScore(const S_CandidateCard& candidate, co
 	return score;
 }
 
+// Check if a candidate card has a fuzzy match for a given search query and skills, by checking for the presence of the keyword and skills in various fields of the candidate card and allowing for fuzzy matching. This allows for a flexible determination of whether a candidate card is relevant to a search query, even if the query does not exactly match the text in the candidate's profile.
 bool ScoringLogic::HasFuzzyCandidateMatch(const S_CandidateCard& candidate, const std::string& keyword, const std::string& skills)
 {
 	if (!keyword.empty())
@@ -1105,6 +1160,7 @@ bool ScoringLogic::HasFuzzyCandidateMatch(const S_CandidateCard& candidate, cons
 	return true;
 }
 
+// Calculate a skill match score for a candidate profile and a job card, based on the coverage of required skills, the semantic overlap of skills, the detected domains and role families, and the strength of domain signals. This allows for a nuanced scoring of how well a candidate's skills align with the requirements of a job description, improving the relevance of search results and candidate recommendations.
 float ScoringLogic::GetSkillMatchScore(const S_CandidateProfile& candidate, const S_JobCard& job)
 {
 	if (job.requiredSkills.empty()) return 0.0f;
@@ -1142,6 +1198,7 @@ float ScoringLogic::GetSkillMatchScore(const S_CandidateProfile& candidate, cons
 		return 0.0f;
 }
 
+// Calculate a field alignment score for a candidate profile and a job card, based on the coverage of relevant fields, the detected domains and role families, and the strength of domain signals. This allows for a nuanced scoring of how well a candidate's overall profile aligns with the requirements and responsibilities of a job description, improving the relevance of search results and candidate recommendations.
 float ScoringLogic::GetFieldAlignmentScore(const S_CandidateProfile& candidate, const S_JobCard& job)
 {
 	const std::string candidateContext = candidate.major + " " + candidate.summary + " " + candidate.workExperience + " " + candidate.skills;
@@ -1185,6 +1242,7 @@ float ScoringLogic::GetFieldAlignmentScore(const S_CandidateProfile& candidate, 
 	return 0.0f;
 }
 
+// Calculate a major relevance score for a candidate profile and a job card, based on the coverage of the candidate's major with the job description, the detected domains and role families, and the strength of domain signals. This allows for a nuanced scoring of how well a candidate's educational background aligns with the requirements and responsibilities of a job description, improving the relevance of search results and candidate recommendations.
 float ScoringLogic::GetMajorRelevanceScore(const S_CandidateProfile& candidate, const S_JobCard& job)
 {
 	if (candidate.major.empty()) return 0.0f;
@@ -1227,6 +1285,7 @@ float ScoringLogic::GetMajorRelevanceScore(const S_CandidateProfile& candidate, 
 	return 0.0f;
 }
 
+// Calculate a recommended job score for a candidate profile and a job card by summing the scores from various criteria such as domain alignment, field alignment, skill match, major relevance, work mode fit, location fit, education fit, experience fit, and salary fit. This allows for an overall scoring of how well a candidate matches a job description based on multiple relevant factors.
 float ScoringLogic::GetRecommendedJobScore(const S_CandidateProfile& candidate, const S_JobCard& job)
 {
 	return getDomainAlignmentScore(candidate, job)
@@ -1240,6 +1299,7 @@ float ScoringLogic::GetRecommendedJobScore(const S_CandidateProfile& candidate, 
 		+ getSalaryFitScore(candidate, job);
 }
 
+// Convert a raw score to a match percentage by normalizing the score within a defined range and applying a non-linear transformation to boost higher scores. This allows for a more intuitive representation of how well a candidate matches a job description, with scores above 65% receiving an additional boost to reflect stronger matches.
 int ScoringLogic::ToMatchPercentage(float score)
 {
 	constexpr float maxRawScore = 100.0f;
@@ -1252,6 +1312,7 @@ int ScoringLogic::ToMatchPercentage(float score)
 	return static_cast<int>(std::lround(normalized));
 }
 
+// Evaluate a candidate's match to a job description by calculating a raw score based on various criteria and converting it to a match percentage, without providing detailed match reasons. This allows for a quick assessment of how well a candidate matches a job description based on the overall score, which can be useful for sorting and filtering candidates in search results.
 ScoringLogic::ScoreOnlyEvaluation ScoringLogic::EvaluateCandidateJobScoreOnly(const S_CandidateProfile& candidate, const S_JobCard& job)
 {
 	ScoreOnlyEvaluation evaluation;
@@ -1260,6 +1321,7 @@ ScoringLogic::ScoreOnlyEvaluation ScoringLogic::EvaluateCandidateJobScoreOnly(co
 	return evaluation;
 }
 
+// Evaluate a candidate's match to a job description by calculating a raw score, converting it to a match percentage, and providing detailed match reasons for the candidate audience. This allows for a comprehensive assessment of how well a candidate matches a job description, with specific feedback on the strengths and weaknesses of the match from the candidate's perspective.
 ScoringLogic::MatchEvaluation ScoringLogic::EvaluateCandidateJobForCandidate(const S_CandidateProfile& candidate, const S_JobCard& job)
 {
 	MatchEvaluation evaluation;
@@ -1270,6 +1332,7 @@ ScoringLogic::MatchEvaluation ScoringLogic::EvaluateCandidateJobForCandidate(con
 	return evaluation;
 }
 
+// Evaluate a candidate's match to a job description by calculating a raw score, converting it to a match percentage, and providing detailed match reasons for the employer audience. This allows for a comprehensive assessment of how well a candidate matches a job description, with specific feedback on the strengths and weaknesses of the match from the employer's perspective.
 ScoringLogic::MatchEvaluation ScoringLogic::EvaluateCandidateJobForEmployer(const S_CandidateProfile& candidate, const S_JobCard& job)
 {
 	MatchEvaluation evaluation;

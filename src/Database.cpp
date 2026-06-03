@@ -16,6 +16,7 @@
 
 namespace
 {
+	// Helper function to check if a column exists in the query result row
 	bool hasColumn(const pqxx::row& row, const char* name)
 	{
 		for (const auto& field : row)
@@ -29,6 +30,7 @@ namespace
 		return false;
 	}
 
+	// Map a database row to an S_JobCard struct, handling optional fields
 	S_JobCard mapJobCard(const pqxx::row& row)
 	{
 		S_JobCard item;
@@ -54,6 +56,7 @@ namespace
 		return item;
 	}
 
+	// Map a database row to an S_CandidateCard struct, handling optional fields
 	S_CandidateCard mapCandidateCard(const pqxx::row& row)
 	{
 		S_CandidateCard item;
@@ -77,6 +80,33 @@ namespace
 	}
 }
 
+Database::Database(std::string host, std::string port, std::string dbname, std::string user, std::string password)
+	: m_connection(nullptr),
+	m_host(std::move(host)),
+	m_port(std::move(port)),
+	m_dbname(std::move(dbname)),
+	m_user(std::move(user)),
+	m_password(std::move(password))
+{
+	if (!createDatabaseIfMissing())
+	{
+		throw std::runtime_error("Database creation failed.");
+	}
+
+	if (!connect(m_host, m_port, m_dbname, m_user, m_password))
+	{
+		throw std::runtime_error("Database connection failed.");
+	}
+
+	if (!createSchema())
+	{
+		throw std::runtime_error("Database schema creation failed.");
+	}
+
+}
+
+
+// Retrieve the list of job postings for the employer along with their applicants
 std::vector<S_EmployerJobApplicants> Database::getEmployerApplicants(const std::string& email)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -165,6 +195,7 @@ std::vector<S_EmployerJobApplicants> Database::getEmployerApplicants(const std::
 	}
 }
 
+// Retrieve detailed information about a specific job posting for the employer
 std::optional<S_JobCard> Database::getEmployerJobDetails(const std::string& email, long long jobId)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -220,6 +251,7 @@ std::optional<S_JobCard> Database::getEmployerJobDetails(const std::string& emai
 	}
 }
 
+// Update an existing job posting for the employer with new information
 bool Database::updateEmployerJob(const std::string& email, long long jobId, const S_JobListing& input)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -273,6 +305,7 @@ bool Database::updateEmployerJob(const std::string& email, long long jobId, cons
 	}
 }
 
+// Retrieve detailed information about a specific job posting for the candidate
 std::optional<S_JobCard> Database::getCandidateJobDetails(long long jobId)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -328,6 +361,7 @@ std::optional<S_JobCard> Database::getCandidateJobDetails(long long jobId)
 	}
 }
 
+// Retrieve detailed information about a specific candidate for the employer
 std::optional<S_CandidateCard> Database::getEmployerCandidateDetails(long long candidateId)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -375,6 +409,7 @@ std::optional<S_CandidateCard> Database::getEmployerCandidateDetails(long long c
 	}
 }
 
+// Retrieve the candidate profile information for the currently logged-in candidate
 std::optional<S_CandidateProfile> Database::getCandidateProfile(const std::string& email)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -432,6 +467,7 @@ std::optional<S_CandidateProfile> Database::getCandidateProfile(const std::strin
 	}
 }
 
+// Retrieve the candidate's skills information for the currently logged-in candidate
 std::string Database::getCandidateSkills(const std::string& email)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -462,31 +498,7 @@ std::string Database::getCandidateSkills(const std::string& email)
 	}
 }
 
-Database::Database(std::string host, std::string port, std::string dbname, std::string user, std::string password)
-	: m_connection(nullptr),
-	m_host(std::move(host)),
-	m_port(std::move(port)),
-	m_dbname(std::move(dbname)),
-	m_user(std::move(user)),
-	m_password(std::move(password))
-{
-	if (!createDatabaseIfMissing())
-	{
-		throw std::runtime_error("Database creation failed.");
-	}
-
-	if (!connect(m_host, m_port, m_dbname, m_user, m_password))
-	{
-		throw std::runtime_error("Database connection failed.");
-	}
-
-	if (!createSchema())
-	{
-		throw std::runtime_error("Database schema creation failed.");
-	}
-
-}
-
+// Load the SQL schema file from disk and return its contents as a string
 std::string Database::loadSqlFile(const std::string& path)
 {
 	std::ifstream file(path, std::ios::binary);
@@ -500,6 +512,7 @@ std::string Database::loadSqlFile(const std::string& path)
 	return buffer.str();
 }
 
+// Check if the specified database exists, and create it if it does not
 bool Database::createDatabaseIfMissing()
 {
 	try
@@ -531,6 +544,7 @@ bool Database::createDatabaseIfMissing()
 	}
 }
 
+// Create the necessary database schema (tables, indexes, etc.) for the application
 bool Database::createSchema()
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -576,6 +590,7 @@ bool Database::createSchema()
 	}
 }
 
+// Retrieve the list of job postings that the candidate has applied to, along with their application status
 std::vector<S_JobCard> Database::getCandidateApplications(const std::string& email)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -633,6 +648,7 @@ std::vector<S_JobCard> Database::getCandidateApplications(const std::string& ema
 	}
 }
 
+// Create a new application for the candidate to the specified job posting, ensuring that duplicates are not created
 bool Database::createCandidateApplication(const std::string& email, long long jobId)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -662,6 +678,7 @@ bool Database::createCandidateApplication(const std::string& email, long long jo
 	}
 }
 
+// Remove the candidate's application for the specified job posting, if it exists
 bool Database::removeCandidateApplication(const std::string& email, long long jobId)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -687,6 +704,7 @@ bool Database::removeCandidateApplication(const std::string& email, long long jo
 	}
 }
 
+// Check if the candidate has already applied to the specified job posting, to prevent duplicate applications
 bool Database::hasCandidateAppliedToJob(const std::string& email, long long jobId)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -713,6 +731,7 @@ bool Database::hasCandidateAppliedToJob(const std::string& email, long long jobI
 	}
 }
 
+// Establish a connection to the PostgreSQL database using the provided connection parameters
 bool Database::connect(std::string& host, std::string& port, std::string& dbname, std::string& user, std::string& password)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -731,12 +750,14 @@ bool Database::connect(std::string& host, std::string& port, std::string& dbname
 	}
 }
 
+// Check if the database connection is currently established and open
 bool Database::isConnected() const
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
 	return (m_connection != nullptr && m_connection->is_open());
 }
 
+// Create a new user account with the specified information, ensuring that the email is unique and all required fields are provided
 bool Database::createAccount(const std::string& fullName, const std::string& email, const std::string& password, const std::string& role)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -775,6 +796,7 @@ bool Database::createAccount(const std::string& fullName, const std::string& ema
 	}
 }
 
+// Update the membership status of the specified user account, ensuring that only valid statuses are accepted and that the account exists
 bool Database::updateMembershipStatus(const std::string& email, const std::string& membershipStatus)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -802,6 +824,7 @@ bool Database::updateMembershipStatus(const std::string& email, const std::strin
 	}
 }
 
+// Validate the provided email and password against the stored credentials in the database, returning true if they match and false otherwise
 bool Database::validateAccount(const std::string& email, const std::string& password)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -831,6 +854,7 @@ bool Database::validateAccount(const std::string& email, const std::string& pass
 	}
 }
 
+// Check if an account with the specified email already exists in the database, to prevent duplicate registrations
 bool Database::accountExists(const std::string& email)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -855,6 +879,7 @@ bool Database::accountExists(const std::string& email)
 	}
 }
 
+// Check if the specified user account has an admin role, to control access to administrative features
 bool Database::isAdminAccount(const std::string& email)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -883,6 +908,7 @@ bool Database::isAdminAccount(const std::string& email)
 	}
 }
 
+// Retrieve the role of the specified user account, to determine their permissions and access level within the application
 std::optional<std::string> Database::getAccountRole(const std::string& email)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -911,6 +937,7 @@ std::optional<std::string> Database::getAccountRole(const std::string& email)
 	}
 }
 
+// Save the candidate profile information for the currently logged-in candidate, creating a new profile if one does not exist or updating the existing profile with the new information
 bool Database::saveCandidateProfile(const std::string& email, const S_CandidateProfile& input)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -973,6 +1000,7 @@ bool Database::saveCandidateProfile(const std::string& email, const S_CandidateP
 	}
 }
 
+// Create a new job posting for the employer with the specified email, ensuring that all required fields are provided and that the employer account exists
 bool Database::createJobPosting(const std::string& email, const S_JobListing& input)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -1026,6 +1054,7 @@ bool Database::createJobPosting(const std::string& email, const S_JobListing& in
 	}
 }
 
+// Retrieve a list of all users with the specified role (or all users if no role is specified) for the admin dashboard, including summary information about their profiles and activity
 std::vector<S_UserSummary> Database::getAdminUsers(const std::string& role)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -1082,6 +1111,7 @@ std::vector<S_UserSummary> Database::getAdminUsers(const std::string& role)
 	}
 }
 
+// Retrieve summary information for the candidate dashboard, including membership status, number of open job positions, and profile completeness percentage
 S_CandidateDashboardData Database::getCandidateDashboard(const std::string& email)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -1148,6 +1178,7 @@ S_CandidateDashboardData Database::getCandidateDashboard(const std::string& emai
 	}
 }
 
+// Retrieve a list of job postings that are currently open and match the candidate's preferences, including summary information about each job and the employer
 std::vector<S_JobCard> Database::getCandidateJobs()
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -1200,6 +1231,7 @@ std::vector<S_JobCard> Database::getCandidateJobs()
 	}
 }
 
+// Retrieve a list of job postings that are currently open and match the candidate's specified filter criteria, including summary information about each job and the employer
 std::vector<S_JobCard> Database::getFilteredCandidateJobs(const std::string& location, const std::string& workMode, const std::string& jobType, const std::string& careerLevel, const std::string& salaryMin, const std::string& salaryMax)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -1263,6 +1295,8 @@ std::vector<S_JobCard> Database::getFilteredCandidateJobs(const std::string& loc
 		return {};
 	}
 }
+
+// Retrieve summary information for the employer dashboard, including membership status, number of active job postings, total job postings, total candidates, and a list of top candidates based on experience
 S_EmployerDashboardData Database::getEmployerDashboard(const std::string& email)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -1332,6 +1366,7 @@ S_EmployerDashboardData Database::getEmployerDashboard(const std::string& email)
 	}
 }
 
+// Retrieve a list of candidates that match the employer's preferences and criteria, including summary information about each candidate's profile and experience
 std::vector<S_CandidateCard> Database::getEmployerCandidates()
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -1379,6 +1414,7 @@ std::vector<S_CandidateCard> Database::getEmployerCandidates()
 	}
 }
 
+// Retrieve a list of candidates that match the employer's specified filter criteria, including summary information about each candidate's profile and experience
 std::vector<S_CandidateCard> Database::getFilteredEmployerCandidates(const std::string& education, const std::string& yearsExperience, const std::string& preferredWorkMode, const std::string& preferredLocation)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -1434,6 +1470,7 @@ std::vector<S_CandidateCard> Database::getFilteredEmployerCandidates(const std::
 	}
 }
 
+// Retrieve a list of job postings created by the employer with the specified email, including summary information about each job and its current status
 std::vector<S_JobCard> Database::getEmployerJobs(const std::string& email)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -1487,6 +1524,7 @@ std::vector<S_JobCard> Database::getEmployerJobs(const std::string& email)
 	}
 }
 
+// Retrieve summary information for the admin dashboard, including total number of users, candidates, employers, premium users, job postings, open job postings, candidate profiles, company profiles, recent user registrations, and recent job postings
 S_AdminDashboardData Database::getAdminDashboard()
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -1606,6 +1644,7 @@ S_AdminDashboardData Database::getAdminDashboard()
 	}
 }
 
+// Retrieve a list of job postings that match the specified status (or all job postings if no status is specified) for the admin dashboard, including summary information about each job and its current status
 std::vector<S_JobCard> Database::getAdminJobs(const std::string& status)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -1648,6 +1687,7 @@ std::vector<S_JobCard> Database::getAdminJobs(const std::string& status)
 	}
 }
 
+// Save or update the company profile information for the employer with the specified email, ensuring that the employer exists and has the appropriate role before allowing the operation to proceed
 bool Database::saveCompanyProfile(const std::string& email, const S_CompanyProfile& input)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -1703,6 +1743,7 @@ bool Database::saveCompanyProfile(const std::string& email, const S_CompanyProfi
 	}
 }
 
+// Retrieve the company profile information for the employer with the specified email, ensuring that the employer exists and has the appropriate role before allowing the operation to proceed
 std::optional<S_CompanyProfile> Database::getCompanyProfile(const std::string& email)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -1752,6 +1793,7 @@ std::optional<S_CompanyProfile> Database::getCompanyProfile(const std::string& e
 	}
 }
 
+// Retrieve detailed information about a specific job posting for the admin dashboard, including summary information about the job, the employer, and the company profile (if available)
 std::optional<S_JobCard> Database::getAdminJobDetails(long long jobId)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);
@@ -1806,11 +1848,13 @@ std::optional<S_JobCard> Database::getAdminJobDetails(long long jobId)
 	}
 }
 
+// Retrieve detailed information about a specific candidate for the admin dashboard, including summary information about the candidate's profile and experience
 std::optional<S_CandidateCard> Database::getAdminCandidateDetails(long long candidateId)
 {
 	return getEmployerCandidateDetails(candidateId);
 }
 
+// Retrieve detailed information about a specific employer for the admin dashboard, including summary information about the employer's profile, company profile (if available), and job postings
 std::optional<S_AdminEmployerDetail> Database::getAdminEmployerDetails(long long employerId)
 {
 	std::lock_guard<std::recursive_mutex> lock(m_dbMutex);

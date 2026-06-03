@@ -2,6 +2,8 @@
 #include <string>
 #include <vector>
 
+// Structs.h defines all the data structures used across the application for representing jobs, candidates, employers, and dashboard data.
+
 struct S_JobCard
 {
 	long long id = 0;

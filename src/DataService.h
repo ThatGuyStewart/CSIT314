@@ -9,6 +9,14 @@
 #include <unordered_map>
 #include <vector>
 
+/*
+DataService class provides higher-level business logic by interacting with the Database class.
+It serves as an abstraction layer between the Server class (which handles API requests) and the Database class (which manages database interactions).
+This class contains methods for account validation, profile management, job postings, and dashboard data retrieval.
+It also includes logic for filtering and scoring job recommendations based on candidate profiles and job requirements.
+It is designed to be thread-safe and can be extended with additional business logic as needed.
+*/
+
 class DataService
 {
 private:

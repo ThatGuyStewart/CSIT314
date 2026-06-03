@@ -5,6 +5,14 @@
 #include <optional>
 #include <pqxx/pqxx>
 
+/*
+Database class manages all interactions with the PostgreSQL database using libpqxx.
+It provides methods for account management, job postings, candidate profiles, and dashboard data retrieval.
+Thread safety is ensured using a recursive mutex and connection management is handled internally.
+All database operations are performed within transactions, and exceptions are caught and logged to prevent crashes.
+This class is designed to be used by the DataService class, which provides higher-level business logic and is called by the Server class to handle API requests.
+*/
+
 class Database
 {
 private:

@@ -15,8 +15,12 @@ struct Sessions
 	std::unordered_map<std::string, std::string> usernameToToken;
 };
 
-// Main server class, inherits from SSLServer to support HTTPS.
-// Contains all route definitions and session management logic.
+/*
+Server class manages all HTTP and HTTPS routes, session management, and authentication.
+It inherits from SSLServer to support HTTPS and contains all route definitions and session management logic.
+This class interacts with the DataService class to perform business logic and database operations based on API requests.
+*/
+
 class Server : public httplib::SSLServer
 {
 private:

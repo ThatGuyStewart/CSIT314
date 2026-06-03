@@ -6,6 +6,7 @@
 
 namespace
 {
+	// Helper function to convert an S_CandidateCard to an S_CandidateProfile for scoring purposes
 	S_CandidateProfile toCandidateProfile(const S_CandidateCard& candidate)
 	{
 		S_CandidateProfile profile;
@@ -24,6 +25,7 @@ namespace
 		return profile;
 	}
 
+	// Helper function to convert an S_EmployerCandidateRecommendation to an S_CandidateCard
 	S_CandidateCard toCandidateCard(const S_EmployerCandidateRecommendation& recommendation)
 	{
 		S_CandidateCard candidate;
@@ -103,6 +105,7 @@ bool DataService::createJobPosting(const std::string& email, const S_JobListing&
 	return m_database.createJobPosting(email, input);
 }
 
+// Retrieve a list of user summaries for admin users, optionally filtering by a search query and role, and sorting by relevance to the search query if provided
 std::vector<S_UserSummary> DataService::getAdminUsers(const std::string& search, const std::string& role)
 {
 	auto users = m_database.getAdminUsers(role);
@@ -130,6 +133,7 @@ std::vector<S_UserSummary> DataService::getAdminUsers(const std::string& search,
 	return users;
 }
 
+// Retrieve dashboard data for a candidate, including profile completeness, open positions, and top job recommendations based on their profile and preferences
 S_CandidateDashboardData DataService::getCandidateDashboard(const std::string& email)
 {
 	auto data = m_database.getCandidateDashboard(email);
@@ -143,6 +147,7 @@ S_CandidateDashboardData DataService::getCandidateDashboard(const std::string& e
 	return data;
 }
 
+// Retrieve a list of job cards for candidates based on optional filters such as keyword, location, work mode, job type, career level, and salary range. If a keyword is provided, jobs are scored and sorted by relevance to the keyword.
 std::vector<S_JobCard> DataService::getCandidateJobs(const std::string& keyword, const std::string& location, const std::string& workMode, const std::string& jobType, const std::string& careerLevel, const std::string& salaryMin, const std::string& salaryMax)
 {
 	auto jobs = m_database.getFilteredCandidateJobs(location, workMode, jobType, careerLevel, salaryMin, salaryMax);
@@ -170,6 +175,7 @@ std::vector<S_JobCard> DataService::getCandidateJobs(const std::string& keyword,
 	return jobs;
 }
 
+// Retrieve detailed information for a specific job card, including whether the candidate has applied to it and personalized match insights based on the candidate's profile if available
 std::optional<S_JobCard> DataService::getCandidateJobDetails(const std::string& email, long long jobId)
 {
 	auto job = m_database.getCandidateJobDetails(jobId);
@@ -209,6 +215,7 @@ bool DataService::removeCandidateApplication(const std::string& email, long long
 	return m_database.removeCandidateApplication(email, jobId);
 }
 
+// Retrieve a list of recommended job cards for a candidate based on their profile and preferences, scored and sorted by relevance. If the candidate profile is incomplete or no strong matches are found, return a broader set of jobs without scoring.
 std::vector<S_JobCard> DataService::getRecommendedJobs(const std::string& email)
 {
 	auto jobs = m_database.getCandidateJobs();
@@ -248,6 +255,7 @@ std::vector<S_JobCard> DataService::getRecommendedJobs(const std::string& email)
 	return jobs;
 }
 
+// Retrieve dashboard data for an employer, including active job count, total posts, total candidates, membership status, and top candidate recommendations based on their job postings and preferences. The top candidates are scored and sorted by relevance to the employer's jobs.
 S_EmployerDashboardData DataService::getEmployerDashboard(const std::string& email)
 {
 	auto data = m_database.getEmployerDashboard(email);
@@ -268,6 +276,7 @@ S_EmployerDashboardData DataService::getEmployerDashboard(const std::string& ema
 	return data;
 }
 
+// Retrieve a list of candidate cards for employers based on optional filters such as keyword, skills, education, years of experience, preferred work mode, and preferred location. If a keyword or skills are provided, candidates are scored and sorted by relevance to the search criteria.
 std::vector<S_CandidateCard> DataService::getEmployerCandidates(const std::string& keyword, const std::string& skills, const std::string& education, const std::string& yearsExperience, const std::string& preferredWorkMode, const std::string& preferredLocation)
 {
 	auto candidates = m_database.getFilteredEmployerCandidates(education, yearsExperience, preferredWorkMode, preferredLocation);
@@ -293,6 +302,7 @@ std::vector<S_CandidateCard> DataService::getEmployerCandidates(const std::strin
 	return candidates;
 }
 
+// Retrieve detailed information for a specific candidate card, including personalized match insights based on the candidate's profile and a specific job if provided. If a jobId is provided, the candidate's match score and reasons will be calculated against that job. If no jobId is provided, the match score will be set to 0 and a generic message will be returned.
 std::optional<S_CandidateCard> DataService::getEmployerCandidateDetails(const std::string& email, long long candidateId, long long jobId)
 {
 	auto candidate = m_database.getEmployerCandidateDetails(candidateId);
@@ -348,6 +358,7 @@ std::optional<S_CandidateCard> DataService::getEmployerCandidateDetails(const st
 	return candidate;
 }
 
+// Retrieve a list of candidate recommendations for an employer based on their job postings. If a specific jobId is provided, candidates will be scored and recommended based on that job. If no jobId is provided, candidates will be scored against all of the employer's jobs and the best match will be used for each candidate. The recommendations are scored and sorted by relevance to the employer's jobs, and limited to a maximum number of results if specified.
 std::vector<S_EmployerCandidateRecommendation> DataService::getEmployerRecommendations(const std::string& email, long long jobId, size_t maxResults)
 {
 	const auto dashboard = m_database.getEmployerDashboard(email);
@@ -557,6 +568,7 @@ S_AdminDashboardData DataService::getAdminDashboard()
 	return m_database.getAdminDashboard();
 }
 
+// Retrieve a list of job cards for admin users based on an optional search query and status filter. If a search query is provided, jobs are scored and sorted by relevance to the query.
 std::vector<S_JobCard> DataService::getAdminJobs(const std::string& search, const std::string& status)
 {
 	auto jobs = m_database.getAdminJobs(status);

@@ -34,6 +34,7 @@ std::string Server::loadFile(const std::string& path)
 	return ss.str();
 }
 
+// Generate a secure random token for session management, using the current time as a seed for randomness. The token is created by generating two random 64-bit integers and concatenating their hexadecimal representations to form a unique session identifier.
 std::string Server::createToken() 
 {
 	static std::mt19937_64 rng((unsigned)std::chrono::system_clock::now().time_since_epoch().count());
@@ -43,6 +44,7 @@ std::string Server::createToken()
 	return token.str();
 }
 
+// Extract the value of a specific cookie from the "Cookie" header in the HTTP request. The function searches for the specified cookie name followed by an equals sign, and if found, it retrieves the value of that cookie until it reaches a semicolon or the end of the string. If the cookie is not found, an empty string is returned.
 std::string Server::getCookieValue(const httplib::Request& req, const std::string& cookieName)
 {
 	const std::string cookie = req.get_header_value("Cookie");
@@ -56,11 +58,13 @@ std::string Server::getCookieValue(const httplib::Request& req, const std::strin
 	return cookie.substr(pos, end == std::string::npos ? std::string::npos : end - pos);
 }
 
+// Retrieve the session token from the cookies in the HTTP request by calling the getCookieValue function with the specific cookie name "session". This function is used to identify the user's session and is essential for managing user authentication and maintaining session state across requests.
 std::string Server::getTokenFromCookie(const httplib::Request& req)
 {
 	return getCookieValue(req, "session");
 }
 
+// Look up the username associated with a given session token by accessing the tokenToUsername map in the Sessions structure. The function first checks if the provided token is empty, and if not, it locks the session mutex to ensure thread safety while accessing the shared data structure. It then searches for the token in the map, and if found, it returns the corresponding username; otherwise, it returns an empty string.
 std::string Server::getUsernameForToken(const std::string& token)
 {
 	if (token.empty()) return {};
@@ -77,6 +81,7 @@ bool Server::validateAccount(const std::string& email, const std::string& passwo
 	return m_service.validateAccount(email, password);
 }
 
+// Create a route that serves a specific file with the given content type. The function takes the route path, the file path, and the content type as parameters. When a request is made to the specified route, the server will call the serveHtmlFile function to load the file and set the appropriate content type in the response.
 void Server::serveHtmlFile(const std::string& path, httplib::Response& res)
 {
 	const auto body = loadFile(path);
@@ -90,6 +95,7 @@ void Server::serveHtmlFile(const std::string& path, httplib::Response& res)
 	res.set_content(body, "text/html");
 }
 
+// Check if the user is authenticated by attempting to retrieve the username associated with the session token from the request. The function first extracts the token from the cookies, then looks up the username for that token. If a valid username is found, it returns true and sets the user parameter to the username; otherwise, it returns false, indicating that the user is not authenticated.
 bool Server::tryGetAuthenticatedUser(const httplib::Request& req, std::string& user)
 {
 	const std::string token = getTokenFromCookie(req);
@@ -97,6 +103,7 @@ bool Server::tryGetAuthenticatedUser(const httplib::Request& req, std::string& u
 	return !user.empty();
 }
 
+// Check if the user is authenticated and has an admin role. The function first calls tryGetAuthenticatedUser to verify if the user is logged in, and if not, it redirects the response to the login page. If the user is authenticated, it then checks the user's role using the DataService's getAccountRole method. If the role is not "admin", it sets the response status to 403 Forbidden and returns false; otherwise, it returns true, allowing access to admin-only routes.
 bool Server::tryRequireAdmin(const httplib::Request& req, httplib::Response& res, std::string& user)
 {
 	if (!tryGetAuthenticatedUser(req, user))
@@ -196,7 +203,7 @@ void Server::createRoutes()
 	createProtectedPageRoute("/admin/job", "admin", "HTML/admin/job_details.html");
 }
 
-
+// Create a route that serves a specific file with the given content type when accessed. The function takes the route path, the file path, and the content type as parameters. When a GET request is made to the specified route, the server will load the file using the loadFile function and set the response content to the file's contents with the appropriate content type. If the file cannot be loaded, it will return a 404 Not Found response.
 void Server::createFileRoute(const std::string& route, const std::string& path, const std::string& type) 
 {
 	Get(route.c_str(), [this, path, type](const httplib::Request& /*req*/, httplib::Response& res) 
@@ -212,6 +219,7 @@ void Server::createFileRoute(const std::string& route, const std::string& path, 
 		});
 }
 
+// Handle the API endpoint for user login. The function parses the JSON body of the request to extract the username and password, then validates the credentials using the validateAccount method. If the credentials are valid, it creates a new session token, updates the session mappings, and returns a JSON response containing the user's role and a redirect URL based on their role. If the credentials are invalid or if there is an error in parsing the JSON, it returns an appropriate error response.
 void Server::handleApiLogin(const httplib::Request& req, httplib::Response& res)
 {
 	try
@@ -277,6 +285,7 @@ void Server::handleApiLogin(const httplib::Request& req, httplib::Response& res)
 	}
 }
 
+// Handle the API endpoint for retrieving employer recommendations. The function first checks if the user is authenticated and has the "employer" role. It then optionally retrieves a job ID from the query parameters and calls the getEmployerRecommendations method of the DataService to fetch the recommendations data. The recommendations are formatted into a JSON response, which includes details about each recommended candidate and their matched jobs, and returned to the client. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiEmployerRecommendations(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -332,6 +341,7 @@ void Server::handleApiEmployerRecommendations(const httplib::Request& req, httpl
 	res.set_content(nlohmann::json({ {"status", "ok"}, {"recommendations", recommendations} }).dump(), "application/json");
 }
 
+// Handle the API endpoint for updating employer membership status. The function first checks if the user is authenticated and has the "employer" role. It then parses the JSON body of the request to extract the new membership status and calls the updateMembershipStatus method of the DataService to update the status in the database. If the update is successful, it returns a JSON response with the new membership status; otherwise, it returns an error response indicating that the update failed. If there is an error in parsing the JSON, it returns a 400 Bad Request response.
 void Server::handleApiEmployerMembership(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -357,6 +367,7 @@ void Server::handleApiEmployerMembership(const httplib::Request& req, httplib::R
 	}
 }
 
+// Handle the API endpoint for retrieving a candidate's profile. The function first checks if the user is authenticated and has the "candidate" role. It then calls the getCandidateProfile method of the DataService to fetch the candidate's profile data. The profile data is formatted into a JSON response, which includes various details about the candidate's background, skills, and preferences, and returned to the client. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiCandidateProfileGet(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -395,6 +406,7 @@ void Server::handleApiCandidateProfileGet(const httplib::Request& req, httplib::
 	res.set_content(reply.dump(), "application/json");
 }
 
+// Handle the API endpoint for user registration. The function parses the JSON body of the request to extract the user's full name, email, password, and role. It validates the input data and checks if an account with the provided email already exists. If the input is valid and the account does not exist, it creates a new account using the createAccount method of the DataService. Upon successful account creation, it returns a JSON response with the user's details; otherwise, it returns an appropriate error response based on the validation failure or account creation issue. If there is an error in parsing the JSON, it returns a 400 Bad Request response.
 void Server::handleApiRegister(const httplib::Request& req, httplib::Response& res)
 {
 	try
@@ -451,6 +463,7 @@ void Server::handleApiRegister(const httplib::Request& req, httplib::Response& r
 	}
 }
 
+// Handle the API endpoint for retrieving the authenticated user's information. The function extracts the session token from the cookies in the request and looks up the associated username. If a valid username is found, it returns a JSON response containing the username; otherwise, it returns a 401 Unauthorized response indicating that the user is unauthenticated.
 void Server::handleApiUser(const httplib::Request& req, httplib::Response& res) 
 {
 	std::string token = getTokenFromCookie(req);
@@ -468,6 +481,7 @@ void Server::handleApiUser(const httplib::Request& req, httplib::Response& res)
 	res.set_content(R"({"error":"unauthenticated"})", "application/json");
 }
 
+// Handle the API endpoint for updating a candidate's profile. The function first checks if the user is authenticated and has the "candidate" role. It then parses the JSON body of the request to extract various profile fields such as contact information, education, skills, and preferences. The extracted data is used to create an S_CandidateProfile object, which is then passed to the saveCandidateProfile method of the DataService to update the candidate's profile in the database. If the update is successful, it returns a JSON response indicating success; otherwise, it returns an error response. If there is an error in parsing the JSON, it returns a 400 Bad Request response.
 void Server::handleApiCandidateProfile(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -510,6 +524,7 @@ void Server::handleApiCandidateProfile(const httplib::Request& req, httplib::Res
 	}
 }
 
+// Handle the API endpoint for retrieving a candidate's dashboard data. The function first checks if the user is authenticated and has the "candidate" role. It then calls the getCandidateDashboard method of the DataService to fetch the dashboard data, which includes recommended jobs, profile completion status, and membership status. The data is formatted into a JSON response, which includes details about each recommended job and returned to the client. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiCandidateDashboard(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -548,6 +563,7 @@ void Server::handleApiCandidateDashboard(const httplib::Request& req, httplib::R
 	res.set_content(reply.dump(), "application/json");
 }
 
+// Handle the API endpoint for retrieving jobs for a candidate based on search criteria. The function first checks if the user is authenticated and has the "candidate" role. It then retrieves various search parameters from the query string, such as keyword, location, work mode, job type, career level, and salary range. These parameters are passed to the getCandidateJobs method of the DataService to fetch matching job listings. The job data is formatted into a JSON response, which includes details about each job and returned to the client along with the candidate's membership status. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiCandidateJobs(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -586,6 +602,7 @@ void Server::handleApiCandidateJobs(const httplib::Request& req, httplib::Respon
 	res.set_content(nlohmann::json({ {"status", "ok"}, {"membershipStatus", dashboardData.membershipStatus}, {"jobs", jobs} }).dump(), "application/json");
 }
 
+// Handle the API endpoint for updating a candidate's membership status. The function first checks if the user is authenticated and has the "candidate" role. It then parses the JSON body of the request to extract the new membership status and calls the updateMembershipStatus method of the DataService to update the status in the database. If the update is successful, it returns a JSON response with the new membership status; otherwise, it returns an error response indicating that the update failed. If there is an error in parsing the JSON, it returns a 400 Bad Request response.
 void Server::handleApiCandidateMembership(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -611,6 +628,7 @@ void Server::handleApiCandidateMembership(const httplib::Request& req, httplib::
 	}
 }
 
+// Handle the API endpoint for retrieving detailed information about a specific job for a candidate. The function first checks if the user is authenticated and has the "candidate" role. It then retrieves the job ID from the query parameters and calls the getCandidateJobDetails method of the DataService to fetch detailed information about the specified job. The job details are formatted into a JSON response, which includes various attributes of the job and returned to the client. If the job is not found, it returns a 404 Not Found response; if the job ID is invalid, it returns a 400 Bad Request response. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiCandidateJobDetails(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -666,6 +684,7 @@ void Server::handleApiCandidateJobDetails(const httplib::Request& req, httplib::
 	}
 }
 
+// Handle the API endpoint for retrieving a candidate's job applications. The function first checks if the user is authenticated and has the "candidate" role. It then calls the getCandidateApplications method of the DataService to fetch a list of jobs that the candidate has applied to. The job application data is formatted into a JSON response, which includes details about each job and returned to the client. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiCandidateApplications(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -694,6 +713,7 @@ void Server::handleApiCandidateApplications(const httplib::Request& req, httplib
 	res.set_content(nlohmann::json({ {"status", "ok"}, {"jobs", jobs} }).dump(), "application/json");
 }
 
+// Handle the API endpoint for applying to or removing an application from a job for a candidate. The function first checks if the user is authenticated and has the "candidate" role. It then parses the JSON body of the request to extract the job ID and a flag indicating whether to remove the application. Based on the flag, it either applies to the specified job or removes the existing application using the DataService. If the operation is successful, it returns a JSON response indicating the new application status; otherwise, it returns an error response. If there is an error in parsing the JSON, it returns a 400 Bad Request response.
 void Server::handleApiCandidateApply(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -735,6 +755,7 @@ void Server::handleApiCandidateApply(const httplib::Request& req, httplib::Respo
 	}
 }
 
+// Handle the API endpoint for retrieving recommended jobs for a candidate. The function first checks if the user is authenticated and has the "candidate" role. It then calls the getRecommendedJobs method of the DataService to fetch a list of recommended jobs for the candidate, as well as their dashboard data to determine their membership status. If the candidate has a free membership and there are more than 10 recommended jobs, the list is truncated to 10 items. The job data is formatted into a JSON response, which includes details about each recommended job and returned to the client along with the candidate's membership status. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiCandidateRecommendedJobs(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -769,6 +790,7 @@ void Server::handleApiCandidateRecommendedJobs(const httplib::Request& req, http
 	res.set_content(nlohmann::json({ {"status", "ok"}, {"membershipStatus", dashboardData.membershipStatus}, {"jobs", jobs} }).dump(), "application/json");
 }
 
+// Handle the API endpoint for creating a new job posting by an employer. The function first checks if the user is authenticated and has the "employer" role. It then parses the JSON body of the request to extract various job details such as company information, job title, description, requirements, location, salary range, and other attributes. The extracted data is used to create an S_JobListing object, which is then passed to the createJobPosting method of the DataService to save the new job posting in the database. If the creation is successful, it returns a JSON response indicating success; otherwise, it returns an error response. If there is an error in parsing the JSON, it returns a 400 Bad Request response.
 void Server::handleApiEmployerCreateJob(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -813,6 +835,7 @@ void Server::handleApiEmployerCreateJob(const httplib::Request& req, httplib::Re
 	}
 }
 
+// Handle the API endpoint for retrieving an employer's dashboard data. The function first checks if the user is authenticated and has the "employer" role. It then calls the getEmployerDashboard method of the DataService to fetch the dashboard data, which includes top candidate matches, active job count, total posts, total candidates, and membership status. The data is formatted into a JSON response, which includes details about each top candidate match and returned to the client. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiEmployerDashboard(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -850,6 +873,7 @@ void Server::handleApiEmployerDashboard(const httplib::Request& req, httplib::Re
 	res.set_content(reply.dump(), "application/json");
 }
 
+// Handle the API endpoint for retrieving candidates for an employer based on search criteria. The function first checks if the user is authenticated and has the "employer" role. It then retrieves various search parameters from the query string, such as keyword, skills, education, years of experience, preferred work mode, and preferred location. These parameters are passed to the getEmployerCandidates method of the DataService to fetch matching candidate profiles. The candidate data is formatted into a JSON response, which includes details about each candidate and returned to the client. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiEmployerCandidates(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -881,6 +905,7 @@ void Server::handleApiEmployerCandidates(const httplib::Request& req, httplib::R
 	res.set_content(nlohmann::json({ {"status", "ok"}, {"candidates", candidates} }).dump(), "application/json");
 }
 
+// Handle the API endpoint for retrieving detailed information about a specific candidate for an employer. The function first checks if the user is authenticated and has the "employer" role. It then retrieves the candidate ID from the query parameters and calls the getEmployerCandidateDetails method of the DataService to fetch detailed information about the specified candidate. The candidate details are formatted into a JSON response, which includes various attributes of the candidate's profile, matched job information, and returned to the client. If the candidate is not found, it returns a 404 Not Found response; if the candidate ID is invalid, it returns a 400 Bad Request response. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiEmployerCandidateDetails(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -942,6 +967,7 @@ void Server::handleApiEmployerCandidateDetails(const httplib::Request& req, http
 	}
 }
 
+// Handle the API endpoint for retrieving applicants for an employer's job posting. The function first checks if the user is authenticated and has the "employer" role. It then retrieves the job ID from the query parameters and calls the getEmployerApplicants method of the DataService to fetch a list of applicants for the specified job. The applicant data is formatted into a JSON response, which includes details about each applicant and returned to the client along with the job information. If the job is not found, it returns a 404 Not Found response; if the job ID is invalid, it returns a 400 Bad Request response. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiEmployerApplicants(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -981,6 +1007,7 @@ void Server::handleApiEmployerApplicants(const httplib::Request& req, httplib::R
 	res.set_content(nlohmann::json({ {"status", "ok"}, {"jobs", jobs} }).dump(), "application/json");
 }
 
+// Handle the API endpoint for retrieving applicants for an employer's job posting. The function first checks if the user is authenticated and has the "employer" role. It then retrieves the job ID from the query parameters and calls the getEmployerApplicants method of the DataService to fetch a list of applicants for the specified job. The applicant data is formatted into a JSON response, which includes details about each applicant and returned to the client along with the job information. If the job is not found, it returns a 404 Not Found response; if the job ID is invalid, it returns a 400 Bad Request response. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiEmployerJobs(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -1008,6 +1035,7 @@ void Server::handleApiEmployerJobs(const httplib::Request& req, httplib::Respons
 	res.set_content(nlohmann::json({ {"status", "ok"}, {"jobs", jobs} }).dump(), "application/json");
 }
 
+// Handle the API endpoint for retrieving detailed information about a specific job for an employer to edit. The function first checks if the user is authenticated and has the "employer" role. It then retrieves the job ID from the query parameters and calls the getEmployerJobDetails method of the DataService to fetch detailed information about the specified job. The job details are formatted into a JSON response, which includes various attributes of the job and returned to the client. If the job is not found, it returns a 404 Not Found response; if the job ID is invalid, it returns a 400 Bad Request response. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiEmployerEditJobGet(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -1060,6 +1088,7 @@ void Server::handleApiEmployerEditJobGet(const httplib::Request& req, httplib::R
 	}
 }
 
+// Handle the API endpoint for updating a job posting by an employer. The function first checks if the user is authenticated and has the "employer" role. It then parses the JSON body of the request to extract various job details such as job title, description, requirements, location, salary range, and other attributes. The extracted data is used to create an S_JobListing object, which is then passed to the updateEmployerJob method of the DataService along with the job ID to update the existing job posting in the database. If the update is successful, it returns a JSON response indicating success; otherwise, it returns an error response. If there is an error in parsing the JSON, it returns a 400 Bad Request response.
 void Server::handleApiEmployerEditJobPost(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -1110,6 +1139,7 @@ void Server::handleApiEmployerEditJobPost(const httplib::Request& req, httplib::
 	}
 }
 
+// Handle the API endpoint for retrieving admin users based on search criteria. The function first checks if the user is authenticated and has the "admin" role. It then retrieves search parameters from the query string, such as search keyword and role filter. These parameters are passed to the getAdminUsers method of the DataService to fetch matching user profiles. The user data is formatted into a JSON response, which includes details about each user and returned to the client. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiAdminUsers(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -1147,6 +1177,7 @@ void Server::handleApiAdminUsers(const httplib::Request& req, httplib::Response&
 	res.set_content(reply.dump(), "application/json");
 }
 
+// Handle the API endpoint for retrieving admin dashboard data. The function first checks if the user is authenticated and has the "admin" role. It then calls the getAdminDashboard method of the DataService to fetch various statistics and recent activity data for the admin dashboard. The data is formatted into a JSON response, which includes total counts of users, candidates, employers, jobs, applications, profiles, companies, as well as lists of recent users and recent jobs. The response is returned to the client. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiAdminDashboard(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -1200,6 +1231,7 @@ void Server::handleApiAdminDashboard(const httplib::Request& req, httplib::Respo
 	res.set_content(reply.dump(), "application/json");
 }
 
+// Handle the API endpoint for retrieving admin jobs based on search criteria. The function first checks if the user is authenticated and has the "admin" role. It then retrieves search parameters from the query string, such as search keyword and status filter. These parameters are passed to the getAdminJobs method of the DataService to fetch matching job listings. The job data is formatted into a JSON response, which includes details about each job and returned to the client. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiAdminJobs(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -1228,6 +1260,7 @@ void Server::handleApiAdminJobs(const httplib::Request& req, httplib::Response& 
 	res.set_content(nlohmann::json({ {"status", "ok"}, {"jobs", jobs} }).dump(), "application/json");
 }
 
+// Handle the API endpoint for retrieving detailed information about a specific candidate for admin view. The function first checks if the user is authenticated and has the "admin" role. It then retrieves the candidate ID from the query parameters and calls the getAdminCandidateDetails method of the DataService to fetch detailed information about the specified candidate. The candidate details are formatted into a JSON response, which includes various attributes of the candidate's profile and returned to the client. If the candidate is not found, it returns a 404 Not Found response; if the candidate ID is invalid, it returns a 400 Bad Request response. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiAdminCandidateDetails(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -1278,6 +1311,7 @@ void Server::handleApiAdminCandidateDetails(const httplib::Request& req, httplib
 	}
 }
 
+// Handle the API endpoint for retrieving detailed information about a specific employer for admin view. The function first checks if the user is authenticated and has the "admin" role. It then retrieves the employer ID from the query parameters and calls the getAdminEmployerDetails method of the DataService to fetch detailed information about the specified employer. The employer details are formatted into a JSON response, which includes various attributes of the employer's profile and returned to the client. If the employer is not found, it returns a 404 Not Found response; if the employer ID is invalid, it returns a 400 Bad Request response. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiAdminEmployerDetails(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -1326,6 +1360,7 @@ void Server::handleApiAdminEmployerDetails(const httplib::Request& req, httplib:
 	}
 }
 
+// Handle the API endpoint for retrieving detailed information about a specific job for admin view. The function first checks if the user is authenticated and has the "admin" role. It then retrieves the job ID from the query parameters and calls the getAdminJobDetails method of the DataService to fetch detailed information about the specified job. The job details are formatted into a JSON response, which includes various attributes of the job and returned to the client. If the job is not found, it returns a 404 Not Found response; if the job ID is invalid, it returns a 400 Bad Request response. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiAdminJobDetails(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -1378,6 +1413,7 @@ void Server::handleApiAdminJobDetails(const httplib::Request& req, httplib::Resp
 	}
 }
 
+// Handle the API endpoint for logging out a user. The function retrieves the session token from the request cookies and, if a valid token is found, it removes the corresponding session information from the server's session management data structures. After clearing the session, it sets a response to redirect the user to the login page and clears the session cookie by setting its expiration time in the past.
 void Server::handleLogout(const httplib::Request& req, httplib::Response& res)
 {
 	const std::string token = getTokenFromCookie(req);
@@ -1405,6 +1441,7 @@ void Server::handleLogout(const httplib::Request& req, httplib::Response& res)
 	res.set_header("Location", "/login");
 }
 
+// Handle the API endpoint for retrieving an employer's company profile. The function first checks if the user is authenticated and has the "employer" role. It then calls the getCompanyProfile method of the DataService to fetch the company profile information for the authenticated employer. The profile data is formatted into a JSON response, which includes various attributes of the company profile and returned to the client. If the user is not authenticated or does not have the correct role, an appropriate error response is returned.
 void Server::handleApiEmployerCompanyProfileGet(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -1436,6 +1473,7 @@ void Server::handleApiEmployerCompanyProfileGet(const httplib::Request& req, htt
 	res.set_content(reply.dump(), "application/json");
 }
 
+// Handle the API endpoint for updating an employer's company profile. The function first checks if the user is authenticated and has the "employer" role. It then parses the JSON body of the request to extract various company profile details such as company name, email, phone, industry, size, location, description, and website URL. The extracted data is used to create an S_CompanyProfile object, which is then passed to the saveCompanyProfile method of the DataService along with the username to update or create the company profile in the database. If the operation is successful, it returns a JSON response indicating success; otherwise, it returns an error response. If there is an error in parsing the JSON, it returns a 400 Bad Request response.
 void Server::handleApiEmployerCompanyProfilePost(const httplib::Request& req, httplib::Response& res)
 {
 	std::string user;
@@ -1484,6 +1522,7 @@ void Server::handleApiEmployerCompanyProfilePost(const httplib::Request& req, ht
 	}
 }
 
+// Helper function to check if the user is authenticated and has the required role. It retrieves the session token from the request cookies and checks if it corresponds to a valid session. If a valid session is found, it retrieves the username associated with the session and checks if the user's role matches the required role. If the user is not authenticated, it sets a response to redirect to the login page. If the user does not have the required role, it sets a 403 Forbidden response. The function returns true if the user is authenticated and has the required role; otherwise, it returns false.
 bool Server::tryRequireRole(const httplib::Request& req, httplib::Response& res, const std::string& requiredRole, std::string& user)
 {
 	if (!tryGetAuthenticatedUser(req, user))
@@ -1503,6 +1542,7 @@ bool Server::tryRequireRole(const httplib::Request& req, httplib::Response& res,
 	return true;
 }
 
+// Helper function to check if the user is authenticated and has the "admin" role. It retrieves the session token from the request cookies and checks if it corresponds to a valid session. If a valid session is found, it retrieves the username associated with the session and checks if the user's role is "admin". If the user is not authenticated, it sets a response to redirect to the login page. If the user does not have the "admin" role, it sets a 403 Forbidden response. The function returns true if the user is authenticated and has the "admin" role; otherwise, it returns false.
 void Server::createProtectedPageRoute(const std::string& route, const std::string& role, const std::string& filePath)
 {
 	Get(route.c_str(), [this, role, filePath](const httplib::Request& req, httplib::Response& res)
@@ -1517,6 +1557,7 @@ void Server::createProtectedPageRoute(const std::string& route, const std::strin
 		});
 }
 
+// Start the server and listen for incoming requests. The function prints a message to the console indicating that the server is starting and the address and port it is listening on. It then calls the listen method of the underlying HTTP server to start accepting connections. If the server fails to start, it throws a runtime error. The function also includes catch blocks to handle any exceptions that may occur during startup and print appropriate error messages to the console.
 void Server::start() 
 {
 	try 
