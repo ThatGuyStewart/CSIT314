@@ -59,6 +59,27 @@
   });
 
   // ============================================================
+  // LOGOUT VIA POST
+  // ============================================================
+  document.addEventListener('click', async e => {
+    const logoutLink = e.target.closest('a[href="/logout"]');
+    if (!logoutLink) return;
+
+    e.preventDefault();
+
+    try {
+      await fetch('/logout', {
+        method: 'POST',
+        credentials: 'same-origin'
+      });
+    } catch {
+      // Ignore and continue to login page.
+    }
+
+    window.location.href = '/login';
+  });
+
+  // ============================================================
   // SALARY RANGE VALIDATION
   // ============================================================
   const salaryMinInput = document.querySelector('input[name="salary_min"], input[name="filter_salary_min"]');
