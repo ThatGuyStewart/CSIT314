@@ -740,18 +740,23 @@ namespace
 		{
 			return semanticOverlap >= 0.5f ? 10.0f : 0.0f;
 		}
-		float bestScore = -55.0f;
-		if (!candidateFamily.empty() && candidateFamily == jobFamily) bestScore = std::max(bestScore, 28.0f);
-		if (familyRelationship == RoleFamilyRelationship::Adjacent) bestScore = std::max(bestScore, candidateDomain == jobDomain ? (semanticOverlap >= 0.18f ? 18.0f : 12.0f) : (semanticOverlap >= 0.18f ? 15.0f : 10.0f));
-		if (familyRelationship == RoleFamilyRelationship::Related) bestScore = std::max(bestScore, candidateDomain == jobDomain ? (semanticOverlap >= 0.18f ? 12.0f : 8.0f) : (semanticOverlap >= 0.18f ? 10.0f : 6.0f));
-		if (candidateDomain == jobDomain && strongDomainEvidence && (candidateFamily.empty() || jobFamily.empty())) bestScore = std::max(bestScore, 28.0f);
-		if (relationship == DomainRelationship::Adjacent && semanticOverlap >= 0.5f) bestScore = std::max(bestScore, 16.0f);
-		if (relationship == DomainRelationship::Adjacent && semanticOverlap >= 0.32f) bestScore = std::max(bestScore, 8.0f);
-		if (relationship == DomainRelationship::Related && semanticOverlap >= 0.45f) bestScore = std::max(bestScore, 10.0f);
-		if (relationship == DomainRelationship::Related && semanticOverlap >= 0.24f) bestScore = std::max(bestScore, 4.0f);
-		if (semanticOverlap >= 0.6f) bestScore = std::max(bestScore, 14.0f);
-		if (semanticOverlap >= 0.45f) bestScore = std::max(bestScore, 6.0f);
-		return bestScore;
+		if (!candidateFamily.empty() && candidateFamily == jobFamily) return 28.0f;
+		if (candidateDomain == jobDomain && strongDomainEvidence && (candidateFamily.empty() || jobFamily.empty())) return 28.0f;
+		if (familyRelationship == RoleFamilyRelationship::Adjacent && candidateDomain == jobDomain && semanticOverlap >= 0.18f) return 18.0f;
+		if (relationship == DomainRelationship::Adjacent && semanticOverlap >= 0.5f) return 16.0f;
+		if (familyRelationship == RoleFamilyRelationship::Adjacent && candidateDomain != jobDomain && semanticOverlap >= 0.18f) return 15.0f;
+		if (semanticOverlap >= 0.6f) return 14.0f;
+		if (familyRelationship == RoleFamilyRelationship::Adjacent && candidateDomain == jobDomain) return 12.0f;
+		if (familyRelationship == RoleFamilyRelationship::Related && candidateDomain == jobDomain && semanticOverlap >= 0.18f) return 12.0f;
+		if (familyRelationship == RoleFamilyRelationship::Adjacent && candidateDomain != jobDomain) return 10.0f;
+		if (familyRelationship == RoleFamilyRelationship::Related && candidateDomain != jobDomain && semanticOverlap >= 0.18f) return 10.0f;
+		if (relationship == DomainRelationship::Related && semanticOverlap >= 0.45f) return 10.0f;
+		if (familyRelationship == RoleFamilyRelationship::Related && candidateDomain == jobDomain) return 8.0f;
+		if (relationship == DomainRelationship::Adjacent && semanticOverlap >= 0.32f) return 8.0f;
+		if (familyRelationship == RoleFamilyRelationship::Related && candidateDomain != jobDomain) return 6.0f;
+		if (semanticOverlap >= 0.45f) return 6.0f;
+		if (relationship == DomainRelationship::Related && semanticOverlap >= 0.24f) return 4.0f;
+		return -55.0f;
 	}
 
 	float getWorkModeScore(const S_CandidateProfile& candidate, const S_JobCard& job)
@@ -1122,15 +1127,19 @@ float ScoringLogic::GetSkillMatchScore(const S_CandidateProfile& candidate, cons
 	const bool strongDomainEvidence = getDomainSignalCount(candidateSignals, candidateDomain) >= 2 && getDomainSignalCount(jobSignals, jobDomain) >= 2;
 	const bool strongFamilyEvidence = getDomainSignalCount(candidateFamilySignals, candidateFamily) >= 2 && getDomainSignalCount(jobFamilySignals, jobFamily) >= 2;
 	if (!candidateDomain.empty() && !jobDomain.empty() && candidateDomain != jobDomain && relationship == DomainRelationship::None && coverage < 0.75f) return 0.0f;
-	float bestScore = 0.0f;
-	bool hasRelationshipLane = false;
-	if (sameFamily && strongFamilyEvidence) { hasRelationshipLane = true; bestScore = std::max(bestScore, getCoverageLaneScore(coverage, 0.32f, 0.72f, 28.0f)); }
-	if (adjacentFamilies && strongFamilyEvidence) { hasRelationshipLane = true; bestScore = std::max(bestScore, getCoverageLaneScore(coverage, 0.2f, 0.54f, 14.0f)); }
-	if (relatedFamilies && strongFamilyEvidence) { hasRelationshipLane = true; bestScore = std::max(bestScore, getCoverageLaneScore(coverage, 0.26f, 0.6f, 8.0f)); }
-	if (adjacentDomains && strongDomainEvidence) { hasRelationshipLane = true; bestScore = std::max(bestScore, getCoverageLaneScore(coverage, 0.26f, 0.68f, 18.0f)); }
-	if (relatedDomains && strongDomainEvidence) { hasRelationshipLane = true; bestScore = std::max(bestScore, getCoverageLaneScore(coverage, 0.3f, 0.64f, 12.0f)); }
-	if (!hasRelationshipLane) bestScore = std::max(bestScore, getCoverageLaneScore(coverage, 0.55f, 0.85f, 28.0f));
-	return bestScore;
+		const bool hasRelationshipLane = (sameFamily && strongFamilyEvidence)
+			|| (adjacentDomains && strongDomainEvidence)
+			|| (adjacentFamilies && strongFamilyEvidence)
+			|| (relatedDomains && strongDomainEvidence)
+			|| (relatedFamilies && strongFamilyEvidence);
+
+		if (sameFamily && strongFamilyEvidence) return getCoverageLaneScore(coverage, 0.32f, 0.72f, 28.0f);
+		if (!hasRelationshipLane) return getCoverageLaneScore(coverage, 0.55f, 0.85f, 28.0f);
+		if (adjacentDomains && strongDomainEvidence) return getCoverageLaneScore(coverage, 0.26f, 0.68f, 18.0f);
+		if (adjacentFamilies && strongFamilyEvidence) return getCoverageLaneScore(coverage, 0.2f, 0.54f, 14.0f);
+		if (relatedDomains && strongDomainEvidence) return getCoverageLaneScore(coverage, 0.3f, 0.64f, 12.0f);
+		if (relatedFamilies && strongFamilyEvidence) return getCoverageLaneScore(coverage, 0.26f, 0.6f, 8.0f);
+		return 0.0f;
 }
 
 float ScoringLogic::GetFieldAlignmentScore(const S_CandidateProfile& candidate, const S_JobCard& job)
@@ -1156,15 +1165,24 @@ float ScoringLogic::GetFieldAlignmentScore(const S_CandidateProfile& candidate, 
 	const bool strongDomainEvidence = getDomainSignalCount(candidateSignals, candidateDomain) >= 2 && getDomainSignalCount(jobSignals, jobDomain) >= 2;
 	const bool strongFamilyEvidence = getDomainSignalCount(candidateFamilySignals, candidateFamily) >= 2 && getDomainSignalCount(jobFamilySignals, jobFamily) >= 2;
 	const bool anyRelationshipLane = sameFamily || adjacentFamilies || relatedFamilies || adjacentDomains || relatedDomains;
-	if (coverage < 0.22f) return anyRelationshipLane ? (sameFamily ? 2.5f : 0.0f) : -45.0f;
-	float bestScore = 0.0f;
-	if (sameFamily && strongFamilyEvidence) bestScore = std::max(bestScore, coverage < 0.32f ? 4.0f : getCoverageLaneScore(coverage, 0.32f, 0.62f, 12.0f));
-	if (adjacentFamilies && strongFamilyEvidence) bestScore = std::max(bestScore, coverage < 0.22f ? 3.5f : getCoverageLaneScore(coverage, 0.22f, 0.48f, 8.5f));
-	if (relatedFamilies && strongFamilyEvidence) bestScore = std::max(bestScore, coverage < 0.26f ? 2.5f : getCoverageLaneScore(coverage, 0.26f, 0.54f, 5.5f));
-	if (adjacentDomains && strongDomainEvidence) bestScore = std::max(bestScore, coverage < 0.28f ? 3.0f : getCoverageLaneScore(coverage, 0.28f, 0.58f, 9.0f));
-	if (relatedDomains && strongDomainEvidence) bestScore = std::max(bestScore, coverage < 0.3f ? 2.0f : getCoverageLaneScore(coverage, 0.3f, 0.6f, 6.5f));
-	if (!anyRelationshipLane) bestScore = std::max(bestScore, coverage < 0.4f ? 0.0f : getCoverageLaneScore(coverage, 0.4f, 0.7f, 12.0f));
-	return bestScore;
+
+	if (sameFamily && strongFamilyEvidence && coverage >= 0.32f) return getCoverageLaneScore(coverage, 0.32f, 0.62f, 12.0f);
+	if (!anyRelationshipLane && coverage >= 0.4f) return getCoverageLaneScore(coverage, 0.4f, 0.7f, 12.0f);
+	if (adjacentDomains && strongDomainEvidence && coverage >= 0.28f) return getCoverageLaneScore(coverage, 0.28f, 0.58f, 9.0f);
+	if (adjacentFamilies && strongFamilyEvidence && coverage >= 0.22f) return getCoverageLaneScore(coverage, 0.22f, 0.48f, 8.5f);
+	if (relatedDomains && strongDomainEvidence && coverage >= 0.3f) return getCoverageLaneScore(coverage, 0.3f, 0.6f, 6.5f);
+	if (relatedFamilies && strongFamilyEvidence && coverage >= 0.26f) return getCoverageLaneScore(coverage, 0.26f, 0.54f, 5.5f);
+	if (sameFamily && strongFamilyEvidence) return 4.0f;
+	if (adjacentFamilies && strongFamilyEvidence) return 3.5f;
+	if (adjacentDomains && strongDomainEvidence) return 3.0f;
+	if (relatedFamilies && strongFamilyEvidence) return 2.5f;
+	if (relatedDomains && strongDomainEvidence) return 2.0f;
+	if (!anyRelationshipLane)
+	{
+		if (coverage < 0.22f) return -45.0f;
+		return 0.0f;
+	}
+	return 0.0f;
 }
 
 float ScoringLogic::GetMajorRelevanceScore(const S_CandidateProfile& candidate, const S_JobCard& job)
@@ -1193,20 +1211,20 @@ float ScoringLogic::GetMajorRelevanceScore(const S_CandidateProfile& candidate, 
 	{
 		if (sameFamily && strongFamilyEvidence) return 2.0f;
 		if (adjacentFamilies && strongFamilyEvidence) return 1.4f;
-		if (relatedFamilies && strongFamilyEvidence) return 0.75f;
 		if (adjacentDomains && strongDomainEvidence) return 1.0f;
+		if (relatedFamilies && strongFamilyEvidence) return 0.75f;
 		if (relatedDomains && strongDomainEvidence) return 0.75f;
 		return 0.0f;
 	}
 	if (!candidateDomain.empty() && !jobDomain.empty() && candidateDomain != jobDomain && relationship == DomainRelationship::None) return 0.0f;
-	float bestScore = 0.0f;
-	if (sameFamily && strongFamilyEvidence) bestScore = std::max(bestScore, getCoverageLaneScore(coverage, 0.35f, 0.65f, 4.0f));
-	if (adjacentFamilies && strongFamilyEvidence) bestScore = std::max(bestScore, getCoverageLaneScore(coverage, 0.3f, 0.52f, 2.5f));
-	if (relatedFamilies && strongFamilyEvidence) bestScore = std::max(bestScore, getCoverageLaneScore(coverage, 0.34f, 0.58f, 1.75f));
-	if (adjacentDomains && strongDomainEvidence) bestScore = std::max(bestScore, getCoverageLaneScore(coverage, 0.35f, 0.6f, 2.5f));
-	if (relatedDomains && strongDomainEvidence) bestScore = std::max(bestScore, getCoverageLaneScore(coverage, 0.36f, 0.62f, 2.0f));
-	if (!anyRelationshipLane) bestScore = std::max(bestScore, getCoverageLaneScore(coverage, 0.5f, 0.75f, 4.0f));
-	return bestScore;
+
+	if (sameFamily && strongFamilyEvidence) return getCoverageLaneScore(coverage, 0.35f, 0.65f, 4.0f);
+	if (!anyRelationshipLane) return getCoverageLaneScore(coverage, 0.5f, 0.75f, 4.0f);
+	if (adjacentFamilies && strongFamilyEvidence) return getCoverageLaneScore(coverage, 0.3f, 0.52f, 2.5f);
+	if (adjacentDomains && strongDomainEvidence) return getCoverageLaneScore(coverage, 0.35f, 0.6f, 2.5f);
+	if (relatedDomains && strongDomainEvidence) return getCoverageLaneScore(coverage, 0.36f, 0.62f, 2.0f);
+	if (relatedFamilies && strongFamilyEvidence) return getCoverageLaneScore(coverage, 0.34f, 0.58f, 1.75f);
+	return 0.0f;
 }
 
 float ScoringLogic::GetRecommendedJobScore(const S_CandidateProfile& candidate, const S_JobCard& job)

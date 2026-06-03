@@ -351,7 +351,8 @@ std::optional<S_CandidateCard> DataService::getEmployerCandidateDetails(const st
 std::vector<S_EmployerCandidateRecommendation> DataService::getEmployerRecommendations(const std::string& email, long long jobId, size_t maxResults)
 {
 	const auto dashboard = m_database.getEmployerDashboard(email);
-	auto jobs = m_database.getEmployerJobs(email);
+	const auto allEmployerJobs = m_database.getEmployerJobs(email);
+	auto jobs = allEmployerJobs;
 	if (jobId > 0)
 	{
 		jobs.erase(std::remove_if(jobs.begin(), jobs.end(), [&](const S_JobCard& job)
@@ -366,6 +367,69 @@ std::vector<S_EmployerCandidateRecommendation> DataService::getEmployerRecommend
 	}
 
 	auto candidates = m_database.getEmployerCandidates();
+	if (dashboard.membershipStatus == "free" && jobId > 0 && !allEmployerJobs.empty() && !candidates.empty())
+	{
+		std::vector<S_EmployerCandidateRecommendation> overallRecommendations;
+		overallRecommendations.reserve(candidates.size() * allEmployerJobs.size());
+
+		for (const auto& candidate : candidates)
+		{
+			const auto candidateProfile = toCandidateProfile(candidate);
+			for (const auto& employerJob : allEmployerJobs)
+			{
+				const auto scoreOnly = ScoringLogic::EvaluateCandidateJobScoreOnly(candidateProfile, employerJob);
+				if (scoreOnly.matchScore <= 0)
+				{
+					continue;
+				}
+
+				S_EmployerCandidateRecommendation recommendation;
+				recommendation.candidateId = candidate.id;
+				recommendation.fullName = candidate.fullName;
+				recommendation.major = candidate.major;
+				recommendation.skills = candidate.skills;
+				recommendation.preferredLocation = candidate.preferredLocation;
+				recommendation.preferredWorkMode = candidate.preferredWorkMode;
+				recommendation.experienceText = candidate.experienceText;
+				recommendation.summary = candidate.summary;
+				recommendation.jobId = employerJob.id;
+				recommendation.jobTitle = employerJob.title;
+				recommendation.rawScore = scoreOnly.rawScore;
+				recommendation.matchScore = scoreOnly.matchScore;
+				overallRecommendations.push_back(std::move(recommendation));
+			}
+		}
+
+		std::stable_sort(overallRecommendations.begin(), overallRecommendations.end(), [](const S_EmployerCandidateRecommendation& left, const S_EmployerCandidateRecommendation& right)
+			{
+				if (left.matchScore != right.matchScore)
+				{
+					return left.matchScore > right.matchScore;
+				}
+
+				if (left.rawScore != right.rawScore)
+				{
+					return left.rawScore > right.rawScore;
+				}
+
+				return left.candidateId < right.candidateId;
+			});
+
+		std::unordered_set<long long> allowedCandidateIds;
+		for (const auto& recommendation : overallRecommendations)
+		{
+			if (allowedCandidateIds.insert(recommendation.candidateId).second && allowedCandidateIds.size() >= 10)
+			{
+				break;
+			}
+		}
+
+		candidates.erase(std::remove_if(candidates.begin(), candidates.end(), [&](const S_CandidateCard& candidate)
+			{
+				return allowedCandidateIds.find(candidate.id) == allowedCandidateIds.end();
+			}), candidates.end());
+	}
+
 	std::vector<S_EmployerCandidateRecommendation> recommendations;
 	recommendations.reserve(candidates.size() * jobs.size());
 	const bool includeReasons = jobId > 0;
@@ -460,7 +524,7 @@ std::vector<S_EmployerCandidateRecommendation> DataService::getEmployerRecommend
 		recommendations.resize(maxResults);
 	}
 
-	if (dashboard.membershipStatus == "free" && recommendations.size() > 10)
+	if (dashboard.membershipStatus == "free" && jobId <= 0 && recommendations.size() > 10)
 	{
 		recommendations.resize(10);
 	}
