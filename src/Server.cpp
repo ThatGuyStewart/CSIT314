@@ -1,13 +1,14 @@
 #include "Server.h"
 #include <algorithm>
-#include <random>
 #include <chrono>
+#include <iomanip>
 #include <sstream>
 #include <stdexcept>
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <ctime>
+#include <openssl/rand.h>
 
 
 Server::Server(DataService& service, const char* cert, const char* key, std::string address, int port)
@@ -34,14 +35,32 @@ std::string Server::loadFile(const std::string& path)
 	return ss.str();
 }
 
-// Generate a secure random token for session management, using the current time as a seed for randomness. The token is created by generating two random 64-bit integers and concatenating their hexadecimal representations to form a unique session identifier.
+// Generate a cryptographically secure random token for session management.
 std::string Server::createToken() 
 {
-	static std::mt19937_64 rng((unsigned)std::chrono::system_clock::now().time_since_epoch().count());
-	std::uniform_int_distribution<uint64_t> dist;
+	std::array<unsigned char, 32> bytes{};
+	if (RAND_bytes(bytes.data(), static_cast<int>(bytes.size())) != 1)
+	{
+		throw std::runtime_error("failed to generate secure session token");
+	}
+
 	std::ostringstream token;
-	token << std::hex << dist(rng) << dist(rng);
+	token << std::hex << std::setfill('0');
+	for (unsigned char byte : bytes)
+	{
+		token << std::setw(2) << static_cast<int>(byte);
+	}
+
 	return token.str();
+}
+
+std::string Server::buildSessionCookie(const std::string& token) const
+{
+	std::ostringstream cookie;
+	cookie << "session=" << token
+		<< "; Path=/; Max-Age=" << std::chrono::duration_cast<std::chrono::seconds>(SESSION_LIFETIME).count()
+		<< "; HttpOnly; Secure; SameSite=Strict";
+	return cookie.str();
 }
 
 // Extract the value of a specific cookie from the "Cookie" header in the HTTP request. The function searches for the specified cookie name followed by an equals sign, and if found, it retrieves the value of that cookie until it reaches a semicolon or the end of the string. If the cookie is not found, an empty string is returned.
@@ -64,16 +83,59 @@ std::string Server::getTokenFromCookie(const httplib::Request& req)
 	return getCookieValue(req, "session");
 }
 
-// Look up the username associated with a given session token by accessing the tokenToUsername map in the Sessions structure. The function first checks if the provided token is empty, and if not, it locks the session mutex to ensure thread safety while accessing the shared data structure. It then searches for the token in the map, and if found, it returns the corresponding username; otherwise, it returns an empty string.
+void Server::removeSessionLocked(const std::string& token)
+{
+	auto sessionIt = m_sessions.tokenToSession.find(token);
+	if (sessionIt == m_sessions.tokenToSession.end())
+	{
+		return;
+	}
+
+	const std::string username = sessionIt->second.username;
+	m_sessions.tokenToSession.erase(sessionIt);
+
+	auto userIt = m_sessions.usernameToToken.find(username);
+	if (userIt != m_sessions.usernameToToken.end() && userIt->second == token)
+	{
+		m_sessions.usernameToToken.erase(userIt);
+	}
+}
+
+void Server::removeExpiredSessionsLocked()
+{
+	const auto now = std::chrono::steady_clock::now();
+
+	for (auto it = m_sessions.tokenToSession.begin(); it != m_sessions.tokenToSession.end();)
+	{
+		if (it->second.expiresAt > now)
+		{
+			++it;
+			continue;
+		}
+
+		const std::string token = it->first;
+		++it;
+		removeSessionLocked(token);
+	}
+}
+
+// Look up the username associated with a given session token. Expired sessions are removed before lookup.
 std::string Server::getUsernameForToken(const std::string& token)
 {
 	if (token.empty()) return {};
 
 	std::lock_guard<std::mutex> lock(m_sessions.sessionMutex);
-	auto it = m_sessions.tokenToUsername.find(token);
-	if (it == m_sessions.tokenToUsername.end()) return {};
+	removeExpiredSessionsLocked();
+	auto it = m_sessions.tokenToSession.find(token);
+	if (it == m_sessions.tokenToSession.end()) return {};
 
-	return it->second;
+	if (it->second.expiresAt <= std::chrono::steady_clock::now())
+	{
+		removeSessionLocked(token);
+		return {};
+	}
+
+	return it->second.username;
 }
 
 bool Server::validateAccount(const std::string& email, const std::string& password)
@@ -163,7 +225,7 @@ void Server::createRoutes()
 	Get("/api/admin/candidate", [&](const httplib::Request& req, httplib::Response& res) { handleApiAdminCandidateDetails(req, res); });
 	Get("/api/admin/employer", [&](const httplib::Request& req, httplib::Response& res) { handleApiAdminEmployerDetails(req, res); });
 	Get("/api/admin/job", [&](const httplib::Request& req, httplib::Response& res) { handleApiAdminJobDetails(req, res); });
-	Get("/logout", [&](const httplib::Request& req, httplib::Response& res) { handleLogout(req, res); });
+	Post("/logout", [&](const httplib::Request& req, httplib::Response& res) { handleLogout(req, res); });
 
 	createProtectedPageRoute("/candidate/dashboard", "candidate", "HTML/candidate/dashboard.html");
 	createProtectedPageRoute("/candidate/profile", "candidate", "HTML/candidate/profile.html");
@@ -230,24 +292,27 @@ void Server::handleApiLogin(const httplib::Request& req, httplib::Response& res)
 
 		if (validateAccount(user, pass))
 		{
-			std::string token = createToken();
-			{
-				std::lock_guard<std::mutex> lock(m_sessions.sessionMutex);
-				auto oldToken = m_sessions.usernameToToken.find(user);
-				if (oldToken != m_sessions.usernameToToken.end())
-				{
-					m_sessions.tokenToUsername.erase(oldToken->second);
-				}
-				m_sessions.tokenToUsername[token] = user;
-				m_sessions.usernameToToken[user] = token;
-			}
-
 			const std::string role = m_service.getAccountRole(user).value_or("");
 			if (role != "admin" && role != "employer" && role != "candidate")
 			{
 				res.status = 403;
 				res.set_content(R"({"error":"invalid account role"})", "application/json");
 				return;
+			}
+
+			std::string token = createToken();
+			{
+				std::lock_guard<std::mutex> lock(m_sessions.sessionMutex);
+				removeExpiredSessionsLocked();
+				auto oldToken = m_sessions.usernameToToken.find(user);
+				if (oldToken != m_sessions.usernameToToken.end())
+				{
+					removeSessionLocked(oldToken->second);
+				}
+
+				const auto now = std::chrono::steady_clock::now();
+				m_sessions.tokenToSession[token] = SessionRecord{ user, now, now + SESSION_LIFETIME };
+				m_sessions.usernameToToken[user] = token;
 			}
 
 			std::string redirectTo = "/candidate/dashboard";
@@ -260,7 +325,7 @@ void Server::handleApiLogin(const httplib::Request& req, httplib::Response& res)
 				redirectTo = "/employer/dashboard";
 			}
 
-			res.set_header("Set-Cookie", std::string("session=") + token + "; Path=/; HttpOnly; SameSite=Strict");
+			res.set_header("Set-Cookie", buildSessionCookie(token));
 
 			nlohmann::json reply =
 			{
@@ -1421,23 +1486,12 @@ void Server::handleLogout(const httplib::Request& req, httplib::Response& res)
 	if (!token.empty())
 	{
 		std::lock_guard<std::mutex> lock(m_sessions.sessionMutex);
-
-		auto tokenIt = m_sessions.tokenToUsername.find(token);
-		if (tokenIt != m_sessions.tokenToUsername.end())
-		{
-			const std::string user = tokenIt->second;
-			m_sessions.tokenToUsername.erase(tokenIt);
-
-			auto userIt = m_sessions.usernameToToken.find(user);
-			if (userIt != m_sessions.usernameToToken.end() && userIt->second == token)
-			{
-				m_sessions.usernameToToken.erase(userIt);
-			}
-		}
+		removeExpiredSessionsLocked();
+		removeSessionLocked(token);
 	}
 
 	res.status = 302;
-	res.set_header("Set-Cookie", "session=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict");
+	res.set_header("Set-Cookie", "session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict");
 	res.set_header("Location", "/login");
 }
 

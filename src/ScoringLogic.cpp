@@ -25,9 +25,6 @@ namespace
 		Other
 	};
 
-	// Map to hold domain signals for different categories (e.g., job title, skills) during the scoring process, allowing for detailed analysis of which aspects of a candidate's profile contributed to their match score
-	using DomainSignalMap = std::unordered_map<std::string, DomainSignal>;
-
 	// Structure to hold expanded search queries for job searches, including separate lists for phrase queries (which contain multiple words) and token queries (which are single words). This allows for more flexible and comprehensive matching of job search keywords against job titles and descriptions.
 	struct ExpandedJobSearchQueries
 	{
@@ -41,6 +38,9 @@ namespace
 		int matchCount = 0;
 		std::vector<std::string> matchedTerms;
 	};
+
+		// Map to hold domain signals for different categories (e.g., job title, skills) during the scoring process, allowing for detailed analysis of which aspects of a candidate's profile contributed to their match score
+		using DomainSignalMap = std::unordered_map<std::string, DomainSignal>;
 
 	// Normalize education text by converting to lowercase and removing non-alphanumeric characters, while preserving spaces for better matching
 	std::string normalizeEducationText(const std::string& value)

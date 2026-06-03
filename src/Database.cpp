@@ -780,7 +780,7 @@ bool Database::createAccount(const std::string& fullName, const std::string& ema
 
 		tx.exec_params(
 			"INSERT INTO users (full_name, email, password_hash, role) "
-			"VALUES ($1, $2, $3, $4)",
+			"VALUES ($1, $2, crypt($3, gen_salt('bf')), $4)",
 			fullName,
 			email,
 			password,
@@ -834,18 +834,13 @@ bool Database::validateAccount(const std::string& email, const std::string& pass
 	{
 		pqxx::read_transaction tx(*m_connection);
 		pqxx::result result = tx.exec_params(
-			"SELECT password_hash "
+			"SELECT 1 "
 			"FROM users "
-			"WHERE email = $1",
-			email);
+			"WHERE email = $1 AND password_hash = crypt($2, password_hash)",
+			email,
+			password);
 
-		if (result.empty())
-		{
-			return false;
-		}
-
-		const std::string storedPassword = result[0]["password_hash"].as<std::string>();
-		return storedPassword == password;
+		return !result.empty();
 	}
 	catch (const std::exception& e)
 	{

@@ -1,6 +1,7 @@
 #pragma once
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include "DataService.h"
+#include <chrono>
 #include <string>
 #include <httplib.h>
 #include <unordered_map>
@@ -8,10 +9,17 @@
 #include <memory>
 
 // Session management struct.
+struct SessionRecord
+{
+	std::string username;
+	std::chrono::steady_clock::time_point createdAt;
+	std::chrono::steady_clock::time_point expiresAt;
+};
+
 struct Sessions
 {
 	std::mutex sessionMutex;
-	std::unordered_map<std::string, std::string> tokenToUsername;
+	std::unordered_map<std::string, SessionRecord> tokenToSession;
 	std::unordered_map<std::string, std::string> usernameToToken;
 };
 
@@ -28,12 +36,16 @@ private:
 	const std::string m_address;
 	const int m_port;
 	Sessions m_sessions;
+	static constexpr std::chrono::minutes SESSION_LIFETIME{ 30 };
 
 	std::string loadFile(const std::string& path);
 	std::string createToken();
 	std::string getTokenFromCookie(const httplib::Request& req);
 	std::string getUsernameForToken(const std::string& token);
 	std::string getCookieValue(const httplib::Request& req, const std::string& cookieName);
+	std::string buildSessionCookie(const std::string& token) const;
+	void removeSessionLocked(const std::string& token);
+	void removeExpiredSessionsLocked();
 
 	bool validateAccount(const std::string& email, const std::string& password);
 	void createRoutes();
