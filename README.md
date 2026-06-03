@@ -8,7 +8,7 @@
 
 /release/cert contains the self-signed certificate and key required for the SSL server.
 
-/database contains schema.sql with the database schema and seed data.
+/release/database contains schema.sql with the database schema and seed data.
 
 /src contains all C++ source files. 
 
