@@ -21,3 +21,5 @@ To compile the C++ application, the following external dependencies are required
 openssl
 libpqxx
 
+The /vendor folder must be added to linker's additional folders.
+
