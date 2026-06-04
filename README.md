@@ -23,3 +23,5 @@ libpqxx
 
 The /vendor folder must be added to linker's additional folders.
 
+Ensure all folders and files included in the Release folder are available to the post-build .exe file before running
+or the program will not operate correctly.
