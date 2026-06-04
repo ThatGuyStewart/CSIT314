@@ -8,7 +8,7 @@
 #include <mutex>
 #include <memory>
 
-// Session management struct.
+// Session management structs.
 struct SessionRecord
 {
 	std::string username;

@@ -53,6 +53,7 @@ namespace
 		if (hasColumn(row, "job_description") && !row["job_description"].is_null()) item.jobDescription = row["job_description"].as<std::string>();
 		if (hasColumn(row, "salary_min") && !row["salary_min"].is_null()) item.salaryMin = row["salary_min"].as<std::string>();
 		if (hasColumn(row, "salary_max") && !row["salary_max"].is_null()) item.salaryMax = row["salary_max"].as<std::string>();
+		if (hasColumn(row, "application_count") && !row["application_count"].is_null()) item.applicationCount = row["application_count"].as<int>();
 		return item;
 	}
 
@@ -1821,11 +1822,14 @@ std::optional<S_JobCard> Database::getAdminJobDetails(long long jobId)
 			"        WHEN jp.salary_min IS NULL AND jp.salary_max IS NULL THEN '' "
 			"        WHEN jp.salary_min IS NOT NULL AND jp.salary_max IS NOT NULL THEN jp.salary_min::text || ' - ' || jp.salary_max::text "
 			"        ELSE COALESCE(jp.salary_min::text, jp.salary_max::text) "
-			"    END AS salary_range "
+			"    END AS salary_range, "
+			"    COUNT(ca.id)::int AS application_count "
 			"FROM job_postings jp "
 			"INNER JOIN users u ON u.id = jp.employer_id "
 			"LEFT JOIN company_profiles cp ON cp.user_id = u.id "
+			"LEFT JOIN candidate_applications ca ON ca.job_posting_id = jp.id "
 			"WHERE jp.id = $1 "
+			"GROUP BY jp.id, jp.job_title, cp.company_name, u.full_name, cp.company_description, cp.website_url, jp.job_type, jp.career_level, jp.status, jp.application_deadline, jp.created_at, jp.job_location, jp.work_mode, jp.required_skills, jp.required_education, jp.required_experience, jp.job_description, jp.salary_min, jp.salary_max "
 			"LIMIT 1",
 			jobId);
 
