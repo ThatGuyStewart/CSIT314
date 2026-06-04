@@ -276,11 +276,6 @@ VALUES
     ('PulsePoint Fitness Pty Ltd', 'pulsepointfitness@example.com', crypt('Password123', gen_salt('bf')), 'employer', 'free')
 ON CONFLICT (email) DO NOTHING;
 
-UPDATE users
-SET membership_status = 'free'
-WHERE email = 'techcorp@example.com'
-  AND role = 'employer';
-
 INSERT INTO candidate_profiles
 (
     user_id,

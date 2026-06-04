@@ -373,6 +373,7 @@
     const freeMarker = options.freeMarkerSelector ? document.querySelector(options.freeMarkerSelector) : null;
     const premiumButton = options.premiumButtonSelector ? document.querySelector(options.premiumButtonSelector) : null;
     const primaryAction = options.primaryActionSelector ? document.querySelector(options.primaryActionSelector) : null;
+    const upgradeButton = options.upgradeButtonSelector ? document.querySelector(options.upgradeButtonSelector) : null;
     if (freeMarker) freeMarker.textContent = isPremium ? '⬇ Downgrade to Free Plan' : 'Current Plan';
     if (freeMarker) freeMarker.dataset.membershipTarget = 'free';
     if (freeMarker) freeMarker.disabled = !isPremium;
@@ -399,6 +400,7 @@
     if (primaryAction) primaryAction.dataset.membershipTarget = isPremium ? 'free' : 'premium';
     if (primaryAction) primaryAction.disabled = false;
     if (primaryAction) primaryAction.style.border = isPremium ? '1px solid #000' : '';
+    if (upgradeButton) upgradeButton.hidden = isPremium;
   }
 
   async function updateMembershipStatus(endpoint, membershipStatus) {
@@ -627,7 +629,8 @@
         badgeSelector: '#candidate-plan-badge',
         limitSelector: '#candidate-rec-limit',
         nameSelector: '#candidate-membership-name',
-        copySelector: '#candidate-membership-copy'
+        copySelector: '#candidate-membership-copy',
+        upgradeButtonSelector: '#candidate-upgrade-button'
       });
 
       const topRecommendations = document.querySelector('#top-recommendations');
@@ -704,7 +707,8 @@
         badgeSelector: '#employer-plan-badge',
         limitSelector: '#employer-rec-limit',
         nameSelector: '#employer-membership-name',
-        copySelector: '#employer-membership-copy'
+        copySelector: '#employer-membership-copy',
+        upgradeButtonSelector: '#employer-upgrade-button'
       });
 
       const topCandidates = document.querySelector('#top-candidates');
